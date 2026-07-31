@@ -14,25 +14,21 @@ inline constexpr bool DEBUG = false;
 #endif
 
 
-namespace mydak {	
+namespace mydak::logger {
 	void log(
-		std::string_view message,
-		std::source_location source = std::source_location::current()
+		std::string_view message
 	);
 
 	void log_error(
-		std::string_view message,
-		std::source_location source = std::source_location::current()
+		std::string_view message
 	);
 
 	void log_debug(
-		std::string_view message,
-		std::source_location source = std::source_location::current()
+		std::string_view message
 	);
 	
 	void log_debug_error(
-		std::string_view message,
-		std::source_location source = std::source_location::current()
+		std::string_view message
 	);
 
 	
@@ -54,6 +50,15 @@ namespace mydak {
 	
 	void log_func_debug_error(
 		std::string_view message,
+		std::source_location source = std::source_location::current()
+	);
+
+	void exception(
+		const std::string&  message
+	);
+
+	void exception_func(
+		const std::string&  message,
 		std::source_location source = std::source_location::current()
 	);
 }
