@@ -17,9 +17,9 @@
 #endif
 
 namespace mydak::brotli {
-    static std::string compress(const std::string& data);
+    std::string compress(const std::string& data);
 
-    inline std::string decompress(const std::string& data);
+    std::string decompress(const std::string& data);
 }
 
 
