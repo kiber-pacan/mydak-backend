@@ -6,28 +6,50 @@
 #include <boost/asio/experimental/channel.hpp>
 #include <queue>
 
+#include "params.h"
+
 namespace asio = boost::asio;
 
 namespace mydak { using send_channel = asio::experimental::channel<void(boost::system::error_code)>; }
 
 namespace mydak {
 	struct client : public std::enable_shared_from_this<client> {
-		client(asio::io_context& io, const char*&& ip, const char*&& port)
+
+		client(asio::io_context& io, const char*&& ip, const char*&& port, const std::vector<mydak::args::parameter_variant>& parameters)
 			:
 			io(io),
 			ip(ip),
-			port(port)
+			port(port),
+			parameters_vector(parameters)
 		{
-
+			set_parameters(
+				0,
+				connect_tries,
+				wait_time,
+				wait_time_add,
+				public_key,
+				recipient
+			);
 		}
 
 		// Stub method
 		void set_pars(size_t counter) {}
 
-		// I think it's just easier to do this magic 
+		// I think it's just easier to do this shit
 		template<typename... T>
-		void set_pars(size_t counter, T&... pars_ref) {
-			((pars_ref = pars[counter++]), ...);
+		void set_parameters(size_t counter, T&... parameters) {
+			(([&](auto& parameter_ref){
+				auto& variant = parameters_vector[counter++];
+				variant.visit([&](auto&& parameter) {
+					using ReturnType = decltype(parameter.get_data());
+					using TargetType = decltype(parameter_ref);
+
+					if constexpr (std::is_assignable_v<TargetType&, ReturnType>) {
+						parameter_ref = parameter.get_data();
+					} else {
+					}
+				});
+			}(parameters)), ...);
 		}
 	
 	
@@ -44,13 +66,13 @@ namespace mydak {
 		std::shared_ptr<asio::ip::tcp::socket> socket;
 
 		std::string ip, port;
-		std::string recipient{};
-		std::vector<int> pars{};
-		// WHAT THE FUCK IS THIS
 
-		int connect_tries = 1;
-		int wait_time = 1;
-		int wait_time_add = 1;
+		const std::vector<mydak::args::parameter_variant>& parameters_vector;
+		int8_t connect_tries = 1;
+		int8_t wait_time = 1;
+		int8_t wait_time_add = 1;
+		std::string	public_key;
+		std::string recipient;
 	
 		std::shared_ptr<mydak::send_channel> send_channel;
 		std::shared_ptr<mydak::send_channel> receive_channel;
