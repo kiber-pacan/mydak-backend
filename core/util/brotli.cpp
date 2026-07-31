@@ -14,7 +14,7 @@
 #define BROTLI_BUFFER_SIZE 1024
 #endif
 
-static std::string mydak::brotli::compress(const std::string& data) {
+std::string mydak::brotli::compress(const std::string& data) {
     auto instance = BrotliEncoderCreateInstance(nullptr, nullptr, nullptr);
     std::array<uint8_t, BROTLI_BUFFER_SIZE> buffer{};
     std::stringstream result;
@@ -39,7 +39,7 @@ static std::string mydak::brotli::compress(const std::string& data) {
     return result.str();
 }
 
-inline std::string mydak::brotli::decompress(const std::string& data) {
+std::string mydak::brotli::decompress(const std::string& data) {
     auto instance = BrotliDecoderCreateInstance(nullptr, nullptr, nullptr);
     std::array<uint8_t, BROTLI_BUFFER_SIZE> buffer{};
     std::stringstream result;
