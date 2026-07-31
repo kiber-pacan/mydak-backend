@@ -22,6 +22,9 @@ add_executable(${EXECUTABLE_NAME}
 
         core/util/logger.cpp
         core/util/logger.hpp
+
+        core/util/brotli.cpp
+        core/util/brotli.hpp
 )
 
 target_include_directories(${EXECUTABLE_NAME} PRIVATE
