@@ -4,6 +4,7 @@
 #include <boost/asio/experimental/channel.hpp>
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/use_awaitable.hpp>
+
 #include <bits/chrono.h>
 #include <cstdint>
 #include <cstring>
@@ -21,7 +22,10 @@
 #include <limits>
 #include <unordered_set>
 
+#include "brotli.hpp"
 #include "client.hpp"
+#include "logger.hpp"
+#include "params.h"
 
 namespace asio = boost::asio;
 
@@ -183,103 +187,17 @@ namespace mydak {
 		}
 	}
 }
-namespace mydak {
-	template <uint8_t type>
-	struct parameter {
-		parameter(uint8_t length) : length(length) {}
-		parameter(int8_t min, int8_t max) : min(min), max(max) {}
-
-		bool can_set_value(std::string_view string) {
-		}
-
-		bool can_set_value(int8_t num) {
-		}
-
-		private:
-		uint8_t length{};
-		int8_t min{};
-		int8_t max{};
-	};
-
-	struct parameters {
-		inline static const uint8_t max_uint8_t = std::numeric_limits<uint8_t>::max();
-		inline static const int8_t max_int8_t = std::numeric_limits<int8_t>::max();
-	
-		static inline const std::unordered_map<std::string, size_t> existing{
-			{"--connect-tries", 0},
-			{"--wait-time", 1},
-			{"--wait-time-add", 2},
-			{"--public-key", 3}
-		};
-
-		using variant = std::variant<parameter<0>, parameter<1>>;
-		inline static const std::vector<variant> values{
-			parameter<1>(1, max_int8_t),
-			parameter<1>(0, max_int8_t),
-			parameter<1>(-1, max_int8_t),
-			parameter<0>(64)
-		};
-	
-	};
-}
-
-static bool is_number(std::string_view string) {
-	for (const char& character : string) if (!std::isdigit(character)) return false;
-	return true;
-}
-
-static void args(int argc, char* argv[]) {
-	auto values = mydak::parameters::values;
-	for (int i = 1; i < argc; i++) {
-		std::string raw = argv[i];
-		auto equals_pos = raw.find("=");
-		if (equals_pos == std::string::npos) {
-			std::cerr << std::format("Wrong parameter format: {}. (no equals symbol)", raw) << std::endl;
-			std::exit(0);
-		}
-
-		std::string parameter = raw.substr(0, equals_pos);
-		std::string_view value = raw.subview(equals_pos + 1, raw.size() - equals_pos - 1);
-
-		if (value.empty()) {
-			std::cerr << std::format("Empty value: {}", parameter) << std::endl;
-			std::exit(0);
-		}
-		
-		auto it = mydak::parameters::existing.find(parameter);
-		
-		if (it == mydak::parameters::existing.end()) {
-			std::cerr << std::format("Wrong parameter: {}. seek help. (--help)", parameter) << std::endl;
-			std::exit(0);
-		}
 
 
-		const size_t& index = it->second;
-		const auto& data_type = mydak::parameters::values[index];
 
-		std::visit([](auto&& foo) { foo; }, data_type);
-		/*
-		switch (data_type->) {
-			// String
-		    case 0: {
-				
-				break;
-			}
-			// Integer
-		    case 1: {
-				break;
-			}
-		}*/
-	}
-}
 
 
 int main(int argc, char* argv[]) {
 	if (sodium_init() != 0) throw std::runtime_error("Failed to init sodium");
-	args(argc, argv);
-	/*
+	const auto parameters = mydak::args::process_args(argc, argv);
+
 	asio::io_context io{};
-	std::shared_ptr<mydak::client> client = std::make_shared<mydak::client>(io, "127.0.0.1", "8888");
+	std::shared_ptr<mydak::client> client = std::make_shared<mydak::client>(io, "127.0.0.1", "8888", parameters);
 	
 	std::shared_ptr<mydak::local_server> local_server = std::make_shared<mydak::local_server>(io, client);
 	
@@ -316,5 +234,4 @@ int main(int argc, char* argv[]) {
 	local_server->io.run();
 
 	return 0;
-	*/
 }
