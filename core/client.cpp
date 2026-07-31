@@ -22,13 +22,13 @@ asio::awaitable<void> mydak::client::initialize(const int current_try) {
 	try {
 		int wait_seconds = wait_time * (current_try > 0) + ((wait_time_add == -1) ? wait_time : wait_time_add) * std::max(0, current_try - 1);
 		
-		mydak::log_debug(std::format("Waiting: {} seconds", wait_seconds));
+		mydak::logger::log_debug(std::format("Waiting: {} seconds", wait_seconds));
 		
 		asio::steady_timer timer(io, asio::chrono::seconds(wait_seconds));
 		
 		co_await timer.async_wait(asio::use_awaitable);
 		
-		mydak::log_debug("Trying to connect...");
+		mydak::logger::log_debug("Trying to connect...");
 
 		asio::ip::tcp::resolver resolver(io);
 
@@ -43,8 +43,7 @@ asio::awaitable<void> mydak::client::initialize(const int current_try) {
 		std::cout << std::format("Initialize exception: {}", e.what()) << std::endl;
 		
 		if (current_try >= connect_tries - 1) {
-			mydak::log_error(std::format("Failed to connect after {} tries!", connect_tries));
-			std::exit(0);
+			mydak::logger::exception(std::format("Failed to connect after {} tries!", connect_tries));
 		}
 		
 		asio::co_spawn(
@@ -105,28 +104,29 @@ asio::awaitable<void> mydak::client::receive() const {
 }
 
 asio::awaitable<void> mydak::client::send() {
-	try {		
-		std::array<char, mydak::proto::PUBLIC_KEY_L> public_key{};
+	try {
+		if (public_key.size() != mydak::proto::PUBLIC_KEY_L) {
+			std::array<char, mydak::proto::PUBLIC_KEY_L> public_key_array{};
+
+			constexpr size_t bin_len = mydak::proto::PUBLIC_KEY_L / 2;
+			constexpr size_t hex_len = mydak::proto::PUBLIC_KEY_L + 1;
+
+			unsigned char bin[bin_len];
+			std::array<char, hex_len> hex{};
 
 
-		constexpr size_t bin_len = mydak::proto::PUBLIC_KEY_L / 2;
-		constexpr size_t hex_len = mydak::proto::PUBLIC_KEY_L + 1;
-		
-		unsigned char bin[bin_len];
-		std::array<char, hex_len> hex{};
-		
-		  
-		randombytes_buf(bin, bin_len);
-		  
-		
-		if (sodium_bin2hex(hex.data(), hex_len, bin, bin_len) == nullptr) {
-			throw std::runtime_error("Failed to convert bytes to hex string");
+			randombytes_buf(bin, bin_len);
+
+			if (sodium_bin2hex(hex.data(), hex_len, bin, bin_len) == nullptr) {
+				throw std::runtime_error("Failed to convert bytes to hex string");
+			}
+
+			std::ranges::copy_n(hex.begin(), mydak::proto::PUBLIC_KEY_L, public_key_array.begin());
+			public_key = std::string(public_key_array.data(), public_key_array.size());
+
+			std::cout << std::string(public_key) << std::endl;
 		}
-		
-		std::ranges::copy_n(hex.begin(), mydak::proto::PUBLIC_KEY_L, public_key.begin());		
-		std::cout << std::string(public_key.data(), public_key.size()) << std::endl;
 
-		//std::ranges::fill(public_key, 'g');
 		co_await asio::async_write(*socket, asio::buffer(public_key), asio::use_awaitable);
 		
 		for (;;) {
