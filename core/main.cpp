@@ -22,7 +22,6 @@
 #include <unordered_set>
 
 #include "client.hpp"
-#include "tools.hpp"
 
 namespace asio = boost::asio;
 
@@ -197,9 +196,9 @@ namespace mydak {
 		}
 
 		private:
-		uint8_t length;
-		int8_t min;
-		int8_t max;
+		uint8_t length{};
+		int8_t min{};
+		int8_t max{};
 	};
 
 	struct parameters {
@@ -223,12 +222,13 @@ namespace mydak {
 	
 	};
 }
-bool is_number(std::string_view string) {
+
+static bool is_number(std::string_view string) {
 	for (const char& character : string) if (!std::isdigit(character)) return false;
 	return true;
 }
 
-void args(int argc, char* argv[]) {
+static void args(int argc, char* argv[]) {
 	auto values = mydak::parameters::values;
 	for (int i = 1; i < argc; i++) {
 		std::string raw = argv[i];
@@ -274,10 +274,10 @@ void args(int argc, char* argv[]) {
 }
 
 
-int main(/*int argc, char* argv[]*/) {
+int main(int argc, char* argv[]) {
 	if (sodium_init() != 0) throw std::runtime_error("Failed to init sodium");
-	//args(argc, argv);
-
+	args(argc, argv);
+	/*
 	asio::io_context io{};
 	std::shared_ptr<mydak::client> client = std::make_shared<mydak::client>(io, "127.0.0.1", "8888");
 	
@@ -316,4 +316,5 @@ int main(/*int argc, char* argv[]*/) {
 	local_server->io.run();
 
 	return 0;
+	*/
 }

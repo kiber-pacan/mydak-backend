@@ -1,6 +1,5 @@
 #include <algorithm>
 #include <bit>
-#include <boost/system/error_code.hpp>
 #include <boost/asio/use_awaitable.hpp>
 #include <exception>
 #include <iostream>
@@ -9,25 +8,27 @@
 
 #include <sys/ioctl.h>
 #include <unistd.h>
-#include "tools.hpp"
 #include <sodium.h>
 
 #include "client.hpp"
+
+#include "brotli.hpp"
+#include "logger.hpp"
 #include "proto.hpp"
 
 namespace asio = boost::asio;
 
-asio::awaitable<void> mydak::client::initialize(int current_try) {
+asio::awaitable<void> mydak::client::initialize(const int current_try) {
 	try {
 		int wait_seconds = wait_time * (current_try > 0) + ((wait_time_add == -1) ? wait_time : wait_time_add) * std::max(0, current_try - 1);
 		
-		mydak::tools::print_if(wait_seconds > 0 and debug, std::format("Waiting: {} seconds", wait_seconds));
+		mydak::log_debug(std::format("Waiting: {} seconds", wait_seconds));
 		
 		asio::steady_timer timer(io, asio::chrono::seconds(wait_seconds));
 		
 		co_await timer.async_wait(asio::use_awaitable);
 		
-		mydak::tools::print_if(debug, "Trying to connect...");
+		mydak::log_debug("Trying to connect...");
 
 		asio::ip::tcp::resolver resolver(io);
 
@@ -42,7 +43,8 @@ asio::awaitable<void> mydak::client::initialize(int current_try) {
 		std::cout << std::format("Initialize exception: {}", e.what()) << std::endl;
 		
 		if (current_try >= connect_tries - 1) {
-			mydak::tools::crash_with_error(std::format("Failed to connect after {} tries!", connect_tries));
+			mydak::log_error(std::format("Failed to connect after {} tries!", connect_tries));
+			std::exit(0);
 		}
 		
 		asio::co_spawn(
@@ -55,7 +57,7 @@ asio::awaitable<void> mydak::client::initialize(int current_try) {
 	co_return;
 }
 
-asio::awaitable<void> mydak::client::receive() {
+asio::awaitable<void> mydak::client::receive() const {
 	try {
 		for (;;)  {
 			std::array<char, mydak::proto::PUBLIC_KEY_L + mydak::proto::MESSAGE_SIZE_L> key_and_size{};
@@ -77,15 +79,16 @@ asio::awaitable<void> mydak::client::receive() {
 			std::string message{}; message.resize(message_size);
 			
 			co_await asio::async_read(*socket, asio::buffer(message.data(), message.size()), asio::use_awaitable);
-			std::string decomressed = mydak::tools::decompress(message);
-			
-			struct winsize size;
+			std::string decomressed = mydak::brotli::decompress(message);
+
+			winsize size{};
 			ioctl(STDOUT_FILENO, TIOCGWINSZ, &size);
 
 
-			std::string gap = "";
-			int gap_size = size.ws_col - decomressed.size() - 2;
-			
+			std::string gap;
+
+			const int gap_size = static_cast<int>(size.ws_col - decomressed.size() - 2);
+
 			if (gap_size > 0) {
 				gap = std::string(static_cast<size_t>(gap_size), ' ');
 			}
@@ -106,11 +109,11 @@ asio::awaitable<void> mydak::client::send() {
 		std::array<char, mydak::proto::PUBLIC_KEY_L> public_key{};
 
 
-		const size_t bin_len = mydak::proto::PUBLIC_KEY_L / 2;
-		const size_t hex_len = mydak::proto::PUBLIC_KEY_L + 1;
+		constexpr size_t bin_len = mydak::proto::PUBLIC_KEY_L / 2;
+		constexpr size_t hex_len = mydak::proto::PUBLIC_KEY_L + 1;
 		
 		unsigned char bin[bin_len];
-		std::array<char, hex_len> hex;
+		std::array<char, hex_len> hex{};
 		
 		  
 		randombytes_buf(bin, bin_len);
@@ -154,7 +157,7 @@ asio::awaitable<void> mydak::client::send() {
 				
 				// GREETINGS
 				std::array<char, mydak::proto::GREETINGS_PREFIX_L> type = {mydak::proto::GREETINGS_PREFIX};
-				std::string message_compressed = mydak::tools::compress(message_raw);
+				std::string message_compressed = mydak::brotli::compress(message_raw);
 				const auto raw_size = static_cast<uint32_t>(message_compressed.size());
 				std::array<char, mydak::proto::MESSAGE_SIZE_L> size{};
 

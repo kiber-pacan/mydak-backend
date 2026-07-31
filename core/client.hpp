@@ -12,27 +12,11 @@ namespace mydak { using send_channel = asio::experimental::channel<void(boost::s
 
 namespace mydak {
 	struct client : public std::enable_shared_from_this<client> {
-		client(asio::io_context& io, std::string ip, std::string port, const std::vector<int>& pars)
+		client(asio::io_context& io, const char*&& ip, const char*&& port)
 			:
-			ip(ip),
-			port(port),
 			io(io),
-			pars(pars)
-		{
-			// WHAT THE FUCK IS THIS
-			set_pars(
-				0,
-				connect_tries,
-				wait_time,
-				wait_time_add
-			);
-		}
-
-		client(asio::io_context& io, std::string ip, std::string port)
-			:
 			ip(ip),
-			port(port),
-			io(io)
+			port(port)
 		{
 
 		}
@@ -49,7 +33,7 @@ namespace mydak {
 	
 		asio::awaitable<void> initialize(int current_try);
  
-		asio::awaitable<void> receive();
+		asio::awaitable<void> receive() const;
 
 		asio::awaitable<void> send();
 
@@ -63,7 +47,6 @@ namespace mydak {
 		std::string recipient{};
 		std::vector<int> pars{};
 		// WHAT THE FUCK IS THIS
-		int debug = 1;
 
 		int connect_tries = 1;
 		int wait_time = 1;
@@ -73,10 +56,6 @@ namespace mydak {
 		std::shared_ptr<mydak::send_channel> receive_channel;
 	
 		std::queue<std::string> messages{};
-	
-	private:
-
-		asio::awaitable<void> connect();
 	};
 }
 
