@@ -25,7 +25,7 @@
 #include "brotli.hpp"
 #include "client.hpp"
 #include "logger.hpp"
-#include "params.hpp"
+#include "parameters.hpp"
 
 namespace asio = boost::asio;
 

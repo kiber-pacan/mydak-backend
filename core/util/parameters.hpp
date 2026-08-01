@@ -2,10 +2,12 @@
 // Created by akicatt on 31.07.2026.
 //
 
-#ifndef MYDAK_BACKEND_PARAMS_H
-#define MYDAK_BACKEND_PARAMS_H
+#ifndef MYDAK_BACKEND_PARAMS_HPP
+#define MYDAK_BACKEND_PARAMS_HPP
+#include <algorithm>
 #include <cstdint>
 #include <string>
+#include <unordered_map>
 #include <variant>
 #include <vector>
 
@@ -13,9 +15,8 @@
 
 
 namespace mydak::args {
-    inline bool is_a_number(std::string_view string) {
-        for (const char& character : string) if (!std::isdigit(character)) return false;
-        return true;
+    inline bool is_a_number(const std::string_view text) {
+        return !text.empty() ? std::ranges::all_of(text, [](auto& character){ return std::isdigit(character); }) : false;
     }
 
     template <uint8_t type>
@@ -102,7 +103,6 @@ namespace mydak::args {
         int8_t max{};
     };
 
-
     using parameter_variant = std::variant<mydak::args::parameter<0>, mydak::args::parameter<1>>;
 
     void help();
@@ -110,4 +110,4 @@ namespace mydak::args {
     [[nodiscard]] std::vector<mydak::args::parameter_variant> process_args(int argc, char* argv[]);
 }
 
-#endif //MYDAK_BACKEND_PARAMS_H
+#endif //MYDAK_BACKEND_PARAMS_HPP

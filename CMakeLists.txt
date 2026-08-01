@@ -25,8 +25,8 @@ add_executable(${EXECUTABLE_NAME}
 
         core/util/brotli.cpp
         core/util/brotli.hpp
-        core/util/params.cpp
-        core/util/params.h
+        core/util/parameters.hpp
+        core/util/parameters.cpp
 )
 
 target_include_directories(${EXECUTABLE_NAME} PRIVATE

@@ -6,7 +6,7 @@
 #include <boost/asio/experimental/channel.hpp>
 #include <queue>
 
-#include "params.hpp"
+#include "parameters.hpp"
 
 namespace asio = boost::asio;
 
