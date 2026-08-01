@@ -1,5 +1,5 @@
-#ifndef MYDAK_WEBSOCKET_UTIL_LOGGER_HPP
-#define MYDAK_WEBSOCKET_UTIL_LOGGER_HPP
+#ifndef MYDAK_BACKEND_CORE_UTIL_LOGGER_HPP
+#define MYDAK_BACKEND_CORE_UTIL_LOGGER_HPP
 
 
 #include <source_location>
@@ -62,4 +62,4 @@ namespace mydak::logger {
 		std::source_location source = std::source_location::current()
 	);
 }
-#endif  // MYDAK_WEBSOCKET_UTIL_LOGGER_HPP
+#endif  // MYDAK_BACKEND_CORE_UTIL_LOGGER_HPP

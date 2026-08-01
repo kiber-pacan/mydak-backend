@@ -6,7 +6,7 @@
 #include <boost/asio/experimental/channel.hpp>
 #include <queue>
 
-#include "params.h"
+#include "params.hpp"
 
 namespace asio = boost::asio;
 
@@ -41,13 +41,8 @@ namespace mydak {
 			(([&](auto& parameter_ref){
 				auto& variant = parameters_vector[counter++];
 				variant.visit([&](auto&& parameter) {
-					using ReturnType = decltype(parameter.get_data());
-					using TargetType = decltype(parameter_ref);
-
-					if constexpr (std::is_assignable_v<TargetType&, ReturnType>) {
+					if constexpr (std::is_assignable_v<decltype(parameter_ref), decltype(parameter.get_data())>)
 						parameter_ref = parameter.get_data();
-					} else {
-					}
 				});
 			}(parameters)), ...);
 		}
