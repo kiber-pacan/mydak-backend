@@ -15,15 +15,14 @@ namespace mydak { using send_channel = asio::experimental::channel<void(boost::s
 namespace mydak {
 	struct client : public std::enable_shared_from_this<client> {
 
-		client(asio::io_context& io, const char*&& ip, const char*&& port, const std::vector<mydak::args::parameter_variant>& parameters)
+		client(asio::io_context& io, const char*&& ip, const char*&& port, const mydak::args::parameters_accessor& parameters)
 			:
 			io(io),
 			ip(ip),
-			port(port),
-			parameters_vector(parameters)
+			port(port)
 		{
 			set_parameters(
-				0,
+				parameters,
 				connect_tries,
 				wait_time,
 				wait_time_add,
@@ -32,19 +31,15 @@ namespace mydak {
 			);
 		}
 
-		// Stub method
-		void set_pars(size_t counter) {}
-
 		// I think it's just easier to do this shit
 		template<typename... T>
-		void set_parameters(size_t counter, T&... parameters) {
-			(([&](auto& parameter_ref){
-				auto& variant = parameters_vector[counter++];
-				variant.visit([&](auto&& parameter) {
-					if constexpr (std::is_assignable_v<decltype(parameter_ref), decltype(parameter.get_data())>)
-						parameter_ref = parameter.get_data();
-				});
-			}(parameters)), ...);
+		void set_parameters(const mydak::args::parameters_accessor parameters_accessor, T&... parameters) {
+			mydak::tools::constexpr_for<args::parameters_count{}>(
+				[&] (auto index) {
+					parameters...[index] = parameters_accessor.get<index>();
+				}
+			);
+
 		}
 	
 	
@@ -62,12 +57,11 @@ namespace mydak {
 
 		std::string ip, port;
 
-		const std::vector<mydak::args::parameter_variant>& parameters_vector;
-		int8_t connect_tries = 1;
-		int8_t wait_time = 1;
-		int8_t wait_time_add = 1;
-		std::string	public_key;
-		std::string recipient;
+		int8_t connect_tries{};
+		int8_t wait_time{};
+		int8_t wait_time_add{};
+		std::string public_key{};
+		std::string recipient{};
 	
 		std::shared_ptr<mydak::send_channel> send_channel;
 		std::shared_ptr<mydak::send_channel> receive_channel;

@@ -27,6 +27,9 @@ add_executable(${EXECUTABLE_NAME}
         core/util/brotli.hpp
         core/util/parameters.hpp
         core/util/parameters.cpp
+        core/util/tools.hpp
+        core/util/namer.hpp
+        core/util/namer.hpp
 )
 
 target_include_directories(${EXECUTABLE_NAME} PRIVATE

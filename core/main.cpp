@@ -25,6 +25,7 @@
 #include "brotli.hpp"
 #include "client.hpp"
 #include "logger.hpp"
+#include "namer.hpp"
 #include "parameters.hpp"
 
 namespace asio = boost::asio;
@@ -38,7 +39,8 @@ namespace mydak {
 
 		std::shared_ptr<asio::ip::tcp::socket> socket;
 		const std::shared_ptr<mydak::client>& client;
-		
+
+
 
 		// Receive messages from frontend
 		asio::awaitable<void> receive_loop() {
@@ -187,7 +189,6 @@ namespace mydak {
 		}
 	}
 }
-
 
 
 
