@@ -14,6 +14,7 @@
 
 #include "brotli.hpp"
 #include "logger.hpp"
+#include "namer.hpp"
 #include "proto.hpp"
 
 namespace asio = boost::asio;
@@ -74,7 +75,10 @@ asio::awaitable<void> mydak::client::receive() const {
 				.data(),
 				mydak::proto::MESSAGE_SIZE_L
 			);
-			
+			if (message_size < 1) continue;
+
+			std::string key = std::string(std::span(key_and_size).subspan(0, mydak::proto::PUBLIC_KEY_L).data(), mydak::proto::PUBLIC_KEY_L);
+
 			std::string message{}; message.resize(message_size);
 			
 			co_await asio::async_read(*socket, asio::buffer(message.data(), message.size()), asio::use_awaitable);
@@ -94,7 +98,7 @@ asio::awaitable<void> mydak::client::receive() const {
 			
 			std::string formatted = std::format("{}{}", gap, decomressed);
 			
-			std::cout << formatted << std::endl;
+			std::cout << mydak::namer::get_name(key) << " : " << formatted << std::endl;
 		}
 	}
 	catch (const std::exception& e) {
