@@ -40,11 +40,12 @@ asio::awaitable<void> mydak::client::initialize(const int current_try) {
 		send_channel = std::make_shared<mydak::send_channel>(socket->get_executor());
 		receive_channel = std::make_shared<mydak::send_channel>(socket->get_executor());
 	}
-	catch (const std::exception& e) {
-		std::cout << std::format("Initialize exception: {}", e.what()) << std::endl;
-		
+	catch (const boost::system::system_error& e) {
+		mydak::logger::exception_func(e);
+
+
 		if (current_try >= connect_tries - 1) {
-			mydak::logger::exception(std::format("Failed to connect after {} tries!", connect_tries));
+			mydak::logger::exit(std::format("Failed after {} tries!", connect_tries));
 		}
 		
 		asio::co_spawn(
@@ -101,8 +102,8 @@ asio::awaitable<void> mydak::client::receive() const {
 			std::cout << mydak::namer::get_name(key) << " : " << formatted << std::endl;
 		}
 	}
-	catch (const std::exception& e) {
-		std::cout << std::format("Receive exception: {}", e.what()) << std::endl;
+	catch (const boost::system::system_error& e) {
+		mydak::logger::exception_func(e);
 	}
 	co_return;
 }
@@ -181,8 +182,8 @@ asio::awaitable<void> mydak::client::send() {
 			}
 		}
 	}
-	catch (const std::exception& e) {
-		std::cout << std::format("Send exception: {}", e.what()) << std::endl;
+	catch (const boost::system::system_error& e) {
+		logger::exception_func(e);
 	}
 	co_return;
 }

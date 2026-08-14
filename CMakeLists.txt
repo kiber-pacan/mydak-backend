@@ -25,10 +25,12 @@ add_executable(${EXECUTABLE_NAME}
 
         core/util/brotli.cpp
         core/util/brotli.hpp
+
         core/util/parameters.hpp
         core/util/parameters.cpp
+
         core/util/tools.hpp
-        core/util/namer.hpp
+
         core/util/namer.hpp
 )
 

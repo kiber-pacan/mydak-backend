@@ -1,5 +1,6 @@
 #include "logger.hpp"
 
+#include <boost/system/system_error.hpp>
 
 
 namespace {
@@ -91,18 +92,47 @@ void mydak::logger::log_func_debug_error(
 	call_log(true, true, message, source.function_name());
 }
 
-void mydak::logger::exception(
-	const std::string& message
+void mydak::logger::exit(
+	const std::string_view message
 ) {
-	std::cout << message << "\n";
+	std::cerr << message << "\n";
 	std::exit(1);
 }
 
-void mydak::logger::exception_func(
-	const std::string& message,
+void mydak::logger::exit(
+	const boost::system::system_error& e
+) {
+	std::cerr << std::format("{} (code: {})", e.code().message(), e.code().value()) << "\n";
+	std::exit(1);
+}
+
+void mydak::logger::exit_func(
+	const std::string_view message,
 	const std::source_location source
 ) {
-	std::cout <<  std::format("{} : {}", get_func_name(source.function_name()), !message.empty() ? std::format(" : {}", message) : "") << "\n";
+	std::cerr << std::format("{} : {}", get_func_name(source.function_name()), !message.empty() ? std::format(" : {}", message) : "") << "\n";
 	std::exit(1);
+}
+
+void mydak::logger::exit_func(
+	const boost::system::system_error& e,
+	const std::source_location source
+) {
+	std::cerr << std::format("{} : {} (code: {})", get_func_name(source.function_name()), e.code().message(), e.code().value()) << "\n";
+	std::exit(1);
+}
+
+
+void mydak::logger::exception(
+	const boost::system::system_error& e
+) {
+	std::cout << std::format("{} (code: {})", e.code().message(), e.code().value()) << "\n";
+}
+
+void mydak::logger::exception_func(
+	const boost::system::system_error& e,
+	const std::source_location source
+) {
+	std::cout << std::format("{} : {} (code: {})", get_func_name(source.function_name()), e.code().message(), e.code().value()) << "\n";
 }
 

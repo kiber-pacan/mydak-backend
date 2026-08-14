@@ -60,7 +60,7 @@ void mydak::args::help() {
 
         const auto equals_pos = raw.find('=');
         if (equals_pos == std::string::npos) {
-            logger::exception(std::format("Wrong parameter format: {}! (no equals symbol)", raw));
+            logger::exit(std::format("Wrong parameter format: {}! (no equals symbol)", raw));
         }
 
         std::string parameter_string = raw.substr(0, equals_pos);
@@ -68,13 +68,13 @@ void mydak::args::help() {
         const auto& value = immortal_strings[i];
 
         if (value.empty()) {
-            logger::exception(std::format("Empty value: {}!", parameter_string));
+            logger::exit(std::format("Empty value: {}!", parameter_string));
         }
 
         auto opt = options_indices.at(parameter_string);
 
         if (!opt.has_value()) {
-            logger::exception(std::format("Wrong parameter: {}! seek help: --help.", parameter_string));
+            logger::exit(std::format("Wrong parameter: {}! seek help: --help.", parameter_string));
         }
 
         const size_t& index = opt.value();

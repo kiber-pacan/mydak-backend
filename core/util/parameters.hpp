@@ -93,7 +93,7 @@ namespace mydak::args {
             if (is_in_limits(value)) {
                 data = value;
             } else {
-                logger::exception_func(std::format("{} is not in bounds: {}!", value, limits_to_string()));
+                logger::exit_func(std::format("{} is not in bounds: {}!", value, limits_to_string()));
             }
         }
     protected:
@@ -114,11 +114,11 @@ namespace mydak::args {
             if (is_a_number(value)) {
                 T number{};
                 auto [ptr, ec] = std::from_chars(value, value + std::strlen(value), number);
-                if (ec != std::errc{}) logger::exception_func(std::format("{} is not a number!", value));
+                if (ec != std::errc{}) logger::exit_func(std::format("{} is not a number!", value));
 
                 this->try_set_val_internal(number);
             } else {
-                logger::exception_func(std::format("{} is not a number!", value));
+                logger::exit_func(std::format("{} is not a number!", value));
             }
         }
     };
@@ -157,7 +157,7 @@ namespace mydak::args {
             if (is_an_ip(value)) {
                 try_set_val_internal(value);
             } else {
-                logger::exception_func(std::format("{} is not an ip", value));
+                logger::exit_func(std::format("{} is not an ip", value));
             }
         }
     };
