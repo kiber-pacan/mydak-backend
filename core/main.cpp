@@ -195,10 +195,9 @@ namespace mydak {
 
 int main(int argc, char* argv[]) {
 	if (sodium_init() != 0) throw std::runtime_error("Failed to init sodium");
-	const auto parameters = mydak::args::process_args(argc, argv);
 
 	asio::io_context io{};
-	std::shared_ptr<mydak::client> client = std::make_shared<mydak::client>(io, "127.0.0.1", "8888", parameters);
+	std::shared_ptr<mydak::client> client = std::make_shared<mydak::client>(io, "127.0.0.1", "8888", argc, argv);
 	
 	std::shared_ptr<mydak::local_server> local_server = std::make_shared<mydak::local_server>(io, client);
 	
