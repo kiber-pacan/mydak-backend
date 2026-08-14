@@ -23,13 +23,13 @@ asio::awaitable<void> mydak::client::initialize(const int current_try) {
 	try {
 		int wait_seconds = wait_time * (current_try > 0) + ((wait_time_add == -1) ? wait_time : wait_time_add) * std::max(0, current_try - 1);
 		
-		mydak::logger::log_debug(std::format("Waiting: {} seconds", wait_seconds));
+		if (wait_seconds > 0) mydak::logger::log_debug(std::format("Waiting: {} seconds", wait_seconds));
 		
 		asio::steady_timer timer(io, asio::chrono::seconds(wait_seconds));
 		
 		co_await timer.async_wait(asio::use_awaitable);
 		
-		mydak::logger::log_debug("Trying to connect...");
+		if (wait_seconds > 0) mydak::logger::log_debug("Trying to connect...");
 
 		asio::ip::tcp::resolver resolver(io);
 
@@ -39,6 +39,8 @@ asio::awaitable<void> mydak::client::initialize(const int current_try) {
 		
 		send_channel = std::make_shared<mydak::send_channel>(socket->get_executor());
 		receive_channel = std::make_shared<mydak::send_channel>(socket->get_executor());
+
+		mydak::logger::log_debug("Connected!");
 	}
 	catch (const boost::system::system_error& e) {
 		mydak::logger::exception_func(e);

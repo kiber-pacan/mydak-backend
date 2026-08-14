@@ -2,7 +2,6 @@
 
 #include <boost/system/system_error.hpp>
 
-
 namespace {
 	std::string get_func_name(std::string_view func) {
 		const auto index0 = func.find('(');
@@ -135,4 +134,3 @@ void mydak::logger::exception_func(
 ) {
 	std::cout << std::format("{} : {} (code: {})", get_func_name(source.function_name()), e.code().message(), e.code().value()) << "\n";
 }
-

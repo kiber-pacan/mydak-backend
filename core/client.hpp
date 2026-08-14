@@ -7,6 +7,7 @@
 #include <queue>
 
 #include "parameters.hpp"
+#include "parameters_accessor.hpp"
 
 namespace asio = boost::asio;
 
@@ -15,14 +16,14 @@ namespace mydak { using send_channel = asio::experimental::channel<void(boost::s
 namespace mydak {
 	struct client : public std::enable_shared_from_this<client> {
 
-		client(asio::io_context& io, const char*&& ip, const char*&& port, const mydak::args::parameters_accessor& parameters)
+		client(asio::io_context& io, const char*&& ip, const char*&& port, int argc, char* argv[])
 			:
 			io(io),
 			ip(ip),
 			port(port)
 		{
 			set_parameters(
-				parameters,
+				args::parameters_accessor(argc, argv),
 				connect_tries,
 				wait_time,
 				wait_time_add,
@@ -34,7 +35,7 @@ namespace mydak {
 		// I think it's just easier to do this shit
 		template<typename... T>
 		void set_parameters(const mydak::args::parameters_accessor parameters_accessor, T&... parameters) {
-			mydak::tools::constexpr_for<args::parameters_count{}>(
+			mydak::tools::constexpr_for<args::parameters_count>(
 				[&] (auto index) {
 					parameters...[index] = parameters_accessor.get<index>();
 				}

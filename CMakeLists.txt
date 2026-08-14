@@ -26,18 +26,25 @@ add_executable(${EXECUTABLE_NAME}
         core/util/brotli.cpp
         core/util/brotli.hpp
 
-        core/util/parameters.hpp
-        core/util/parameters.cpp
-
         core/util/tools.hpp
 
         core/util/namer.hpp
+
+        core/parameters/parameters.hpp
+        core/parameters/parameters.cpp
+
+        core/parameters/parameters_base.hpp
+        core/parameters/parameters_base.cpp
+
+        core/parameters/parameters_accessor.hpp
+        core/parameters/parameters_accessor.cpp
 )
 
 target_include_directories(${EXECUTABLE_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}/core/
         ${CMAKE_CURRENT_SOURCE_DIR}/core/util
+        ${CMAKE_CURRENT_SOURCE_DIR}/core/parameters
 )
 
 
