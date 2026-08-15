@@ -12,17 +12,21 @@
 
 // Output order is undefined
 void mydak::args::help() {
-    std::array<std::string_view, std::size(parameters)> array{};
-    tools::constexpr_for<std::size(parameters)>(
-        [&](auto i) {
-            array[i] = std::string_view{std::get<i>(options_tuple).c_str()};
-        }
-    );
-
-    for (std::size_t i = 0; i < std::size(parameters); i++) {
+    //std::array<std::string_view, parameters_count> array{};
+    // Getting string views pointed to the corresponding options from options_tuple
+    tools::constexpr_for<parameters_count>(
+    [&](auto i) {
         parameters[i].visit([&](auto&& parameter) {
-        logger::log(std::format("{} : {} ({}), default value: {}.", array[i], parameter.limits_to_string(), boost::core::demangle(typeid(decltype(parameter.get_data())).name()), parameter.get_data()));
+
+            logger::log(std::format("{} : {} ({}), default value: {}.", std::get<i>(options_tuple).c_str(), parameter.limits_to_string(), boost::core::demangle(typeid(decltype(parameter.get_data())).name()), parameter.get_data()));
+
         });
+        array[i] = std::string_view{};
+    });
+
+
+    for (std::size_t i = 0; i < parameters_count; i++) {
+
     }
 
     std::exit(1);

@@ -21,35 +21,35 @@ namespace asio = boost::asio;
 
 asio::awaitable<void> mydak::client::initialize(const int current_try) {
 	try {
-		int wait_seconds = wait_time * (current_try > 0) + ((wait_time_add == -1) ? wait_time : wait_time_add) * std::max(0, current_try - 1);
+		int wait_seconds = wait_time * (current_try > 0) + (wait_time_add == -1 ? wait_time : wait_time_add) * std::max(0, current_try - 1);
 		
 		if (wait_seconds > 0) mydak::logger::log_debug(std::format("Waiting: {} seconds", wait_seconds));
 		
 		asio::steady_timer timer(io, asio::chrono::seconds(wait_seconds));
-		
 		co_await timer.async_wait(asio::use_awaitable);
 		
 		if (wait_seconds > 0) mydak::logger::log_debug("Trying to connect...");
 
+		// Trying to connect
 		asio::ip::tcp::resolver resolver(io);
-
 		socket = std::make_shared<asio::ip::tcp::socket>(io);
-
 		co_await asio::async_connect(*socket, resolver.resolve(ip, port));
-		
-		send_channel = std::make_shared<mydak::send_channel>(socket->get_executor());
-		receive_channel = std::make_shared<mydak::send_channel>(socket->get_executor());
 
 		mydak::logger::log_debug("Connected!");
+
+		// Creating channels
+		send_channel = std::make_shared<mydak::send_channel>(socket->get_executor());
+		receive_channel = std::make_shared<mydak::send_channel>(socket->get_executor());
 	}
 	catch (const boost::system::system_error& e) {
 		mydak::logger::exception_func(e);
 
-
+		// Exit after N tries
 		if (current_try >= connect_tries - 1) {
 			mydak::logger::exit(std::format("Failed after {} tries!", connect_tries));
 		}
-		
+
+		// Another try
 		asio::co_spawn(
 			io,
 			initialize(current_try + 1),
@@ -60,13 +60,17 @@ asio::awaitable<void> mydak::client::initialize(const int current_try) {
 	co_return;
 }
 
+// Receive messages from the server loop
 asio::awaitable<void> mydak::client::receive() const {
 	try {
 		for (;;)  {
+			// [key][size]
+			// normally 64 + 4
 			std::array<char, mydak::proto::PUBLIC_KEY_L + mydak::proto::MESSAGE_SIZE_L> key_and_size{};
 			co_await asio::async_read(*socket, asio::buffer(key_and_size, key_and_size.size()), asio::use_awaitable);
 
 
+			// Getting message size TODO REPLACE WITH NEWER C++26 STANDARD
 			uint32_t message_size;
 			std::memcpy(
 				&message_size,
@@ -80,26 +84,29 @@ asio::awaitable<void> mydak::client::receive() const {
 			);
 			if (message_size < 1) continue;
 
-			std::string key = std::string(std::span(key_and_size).subspan(0, mydak::proto::PUBLIC_KEY_L).data(), mydak::proto::PUBLIC_KEY_L);
+			// Getting first 64 chars aka public key
+			std::string key(std::span(key_and_size).subspan(0, mydak::proto::PUBLIC_KEY_L).data(), mydak::proto::PUBLIC_KEY_L);
 
-			std::string message{}; message.resize(message_size);
-			
-			co_await asio::async_read(*socket, asio::buffer(message.data(), message.size()), asio::use_awaitable);
-			std::string decomressed = mydak::brotli::decompress(message);
+			std::string raw_message{}; raw_message.resize(message_size);
 
+			// Getting brotli encoded string
+			co_await asio::async_read(*socket, asio::buffer(raw_message.data(), raw_message.size()), asio::use_awaitable);
+			std::string message = mydak::brotli::decompress(raw_message);
+
+			#pragma region gap shenanigans
 			winsize size{};
 			ioctl(STDOUT_FILENO, TIOCGWINSZ, &size);
 
-
 			std::string gap;
 
-			const int gap_size = static_cast<int>(size.ws_col - decomressed.size() - 2);
+			const int gap_size = static_cast<int>(size.ws_col - message.size() - 2);
 
 			if (gap_size > 0) {
 				gap = std::string(static_cast<size_t>(gap_size), ' ');
 			}
-			
-			std::string formatted = std::format("{}{}", gap, decomressed);
+			#pragma endregion
+
+			std::string formatted = std::format("{}{}", gap, message);
 			
 			std::cout << mydak::namer::get_name(key) << " : " << formatted << std::endl;
 		}
@@ -110,8 +117,10 @@ asio::awaitable<void> mydak::client::receive() const {
 	co_return;
 }
 
+// Send messages to the server loop
 asio::awaitable<void> mydak::client::send() {
 	try {
+		// Getting new public key if public_key is not the right size (Probably empty!)
 		if (public_key.size() != mydak::proto::PUBLIC_KEY_L) {
 			std::array<char, mydak::proto::PUBLIC_KEY_L> public_key_array{};
 
@@ -120,7 +129,6 @@ asio::awaitable<void> mydak::client::send() {
 
 			unsigned char bin[bin_len];
 			std::array<char, hex_len> hex{};
-
 
 			randombytes_buf(bin, bin_len);
 
@@ -134,36 +142,38 @@ asio::awaitable<void> mydak::client::send() {
 			std::cout << std::string(public_key) << std::endl;
 		}
 
+		// Sending our public key so we can get registered on the server
 		co_await asio::async_write(*socket, asio::buffer(public_key), asio::use_awaitable);
-		
+
+		// Main loop
 		for (;;) {
 			co_await send_channel->async_receive(asio::use_awaitable);
 
 			for (; not messages.empty(); messages.pop()) {
 				std::string& message_raw = messages.front();
 
-				// COMMANDS
+				// Basic degenerate command thingy
 				if (message_raw[0] == '/') {
 					if (message_raw[1] == 'r' && message_raw[2] == ' ') {
 						std::string_view recipient_view = std::string_view(message_raw).substr(3, message_raw.size() - 3);
 						recipient = std::string(recipient_view);
-						
-						continue;
-					} else {
-						std::cout << "Something is wrong" << std::endl;
-						
+
 						continue;
 					}
+					std::cout << "Something is wrong" << std::endl;
+
+					continue;
 				}
-				
+
+				// SET YOUR FUCKING RECIPIENT YOU STUPID WHORE
 				if (recipient.empty()) {
 					std::cout << "No recipient provided. /r <RECIPIENT>" << std::endl;
 					continue;
 				}
 				
 				
-				// GREETINGS
-				std::array<char, mydak::proto::GREETINGS_PREFIX_L> type = {mydak::proto::GREETINGS_PREFIX};
+				// Preparing greetings packet
+				std::array prefix{mydak::proto::GREETINGS_PREFIX};
 				std::string message_compressed = mydak::brotli::compress(message_raw);
 				const auto raw_size = static_cast<uint32_t>(message_compressed.size());
 				std::array<char, mydak::proto::MESSAGE_SIZE_L> size{};
@@ -173,8 +183,9 @@ asio::awaitable<void> mydak::client::send() {
 				} else {
 					size = std::bit_cast<std::array<char, mydak::proto::MESSAGE_SIZE_L>>(raw_size);
 				}
-			   
-				co_await asio::async_write(*socket, asio::buffer(type), asio::use_awaitable);
+
+				// GREETINGS
+				co_await asio::async_write(*socket, asio::buffer(prefix), asio::use_awaitable);
 				co_await asio::async_write(*socket, asio::buffer(size), asio::use_awaitable);
 				co_await asio::async_write(*socket, asio::buffer(recipient), asio::use_awaitable);
 

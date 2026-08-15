@@ -63,7 +63,7 @@ namespace mydak::args {
      *
      * @param args Parameters for the initialization of parameter<N>.
      *
-     * @return A pair containing integral_constant index and the tuple of arguments.
+     * @return A pair containing integral_constant index and the pair with the Option and the tuple of arguments.
      */
     template <tools::static_string Option, std::size_t N, typename... T>
     requires (N < parameters_variant_count)
@@ -83,9 +83,10 @@ namespace mydak::args {
      *     std::integral_constant<
      *         std::size_t, {Parameter type index}
      *     >,
-     *     std::tuple<
-     *         std::pair <
-     *             {Command name (static_string)}
+     *
+     *     std::pair <
+     *         {Option name (static_string)},
+     *         std::tuple<
      *             {Parameters for initialization of the corresponding parameter}
      *         >
      *     >
