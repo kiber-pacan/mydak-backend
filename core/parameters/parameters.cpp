@@ -17,11 +17,8 @@ void mydak::args::help() {
     tools::constexpr_for<parameters_count>(
     [&](auto i) {
         parameters[i].visit([&](auto&& parameter) {
-
             logger::log(std::format("{} : {} ({}), default value: {}.", std::get<i>(options_tuple).c_str(), parameter.limits_to_string(), boost::core::demangle(typeid(decltype(parameter.get_data())).name()), parameter.get_data()));
-
         });
-        array[i] = std::string_view{};
     });
 
 
