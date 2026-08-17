@@ -52,8 +52,8 @@ target_include_directories(${EXECUTABLE_NAME} PRIVATE
 target_sources(${EXECUTABLE_NAME} PRIVATE ${include})
 
 
-# Dependencies
-include(CPM.cmake)
+include(cmake/CPM.cmake)
+
 
 # LIBSODIUM
 CPMAddPackage(
