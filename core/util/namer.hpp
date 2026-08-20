@@ -94,25 +94,22 @@ namespace mydak::namer {
         if (it != detail::names_cache.end()) return it->second;
 
         // Check if public_key is right length
-        if (std::size(public_key) != proto::PUBLIC_KEY_L) return "missingno";
-        std::size_t public_key_max_value;
+        if (std::size(public_key) != proto::E2E_KEYS_L * 2) return "missingno";
 
         // Getting max value of key so we can get right adj and noun
-        if constexpr (std::is_signed<char>::value)
-            public_key_max_value = 128 * proto::PUBLIC_KEY_L;
-        else
-            public_key_max_value = 256 * proto::PUBLIC_KEY_L;
+        constexpr std::size_t max_value = 256 * proto::E2E_KEYS_L;
 
-        std::size_t size = 0;
+        std::size_t value = 0;
         for (const char character : public_key) {
-            size += character;
+            value += character;
         }
 
 
         // Getting indices for nouns and adj, also number so we almost cannot get the same names
-        const std::size_t index1 = size / 32;
-        const std::size_t index2 = (public_key_max_value - size) / 32;
-        const std::size_t number = size * (public_key_max_value - size) / (8192 * 32);
+        std::cout << value << " " << max_value << std::endl;
+        const std::size_t index1 = value / max_value * std::size(detail::adjectives);
+        const std::size_t index2 = (max_value - value) / max_value * std::size(detail::nouns);
+        const std::size_t number = 1;
 
         // Caching the name
         auto& name = detail::names_cache[public_key];

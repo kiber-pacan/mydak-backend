@@ -1,6 +1,12 @@
 # Set cmake version
 cmake_minimum_required(VERSION 4.3)
 
+find_program(CCACHE_EXECUTABLE ccache)
+if(CCACHE_EXECUTABLE)
+    set(CMAKE_C_COMPILER_LAUNCHER ${CCACHE_EXECUTABLE})
+    set(CMAKE_CXX_COMPILER_LAUNCHER ${CCACHE_EXECUTABLE})
+endif()
+
 # Setting c++ 26 standard
 set(CMAKE_CXX_STANDARD 26)
 
@@ -40,6 +46,8 @@ add_executable(${EXECUTABLE_NAME}
         core/parameters/parameters_accessor.cpp
         core/main/local_server.cpp
         core/main/local_server.hpp
+        core/util/coh.cpp
+        core/util/coh.hpp
 
 )
 

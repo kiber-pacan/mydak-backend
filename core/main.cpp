@@ -23,7 +23,9 @@
 #include <unordered_set>
 
 #include "local_server.hpp"
-#include "main/client.hpp"
+#include "client.hpp"
+#include "coh.hpp"
+#include "namer.hpp"
 
 namespace asio = boost::asio;
 
@@ -63,45 +65,70 @@ namespace mydak {
 
 
 
+
+namespace mydak {
+	struct key_pair {
+		std::array<unsigned char, proto::E2E_KEYS_L> public_key{};
+		std::array<unsigned char, proto::E2E_KEYS_L> private_key{};
+
+		std::string bin2hex_public_key() {
+			std::string hex(proto::E2E_KEYS_L * 2 + 1, '\0');
+			sodium_bin2hex(hex.data(), std::size(hex), public_key.data(), std::size(public_key));
+			hex.resize(proto::E2E_KEYS_L * 2); // Cut null terminator
+			return hex;
+		}
+
+		std::string bin2hex_private_key() {
+			std::string hex(proto::E2E_KEYS_L * 2 + 1, '\0');
+			sodium_bin2hex(hex.data(), std::size(hex), private_key.data(), std::size(private_key));
+		    hex.resize(proto::E2E_KEYS_L * 2); // Cut null terminator
+			return hex;
+		}
+	};
+}
+
 int main(int argc, char* argv[]) {
 	if (sodium_init() != 0) throw std::runtime_error("Failed to init sodium");
 
-	asio::io_context io{};
-	std::shared_ptr<mydak::client> client = std::make_shared<mydak::client>(io, "127.0.0.1", "8888", argc, argv);
-	
-	std::shared_ptr<mydak::local_server> local_server = std::make_shared<mydak::local_server>(io, client);
 
+	mydak::key_pair key_pair{};
+
+	if (crypto_box_keypair(key_pair.public_key.data(), key_pair.private_key.data()) != 0)
+		throw std::runtime_error("Failed to generate key");
+
+	std::cout << mydak::namer::get_name(key_pair.bin2hex_public_key()) << std::endl;
+
+	return 0;
+
+	auto& io = mydak::coh::io();
+	auto client = std::make_shared<mydak::client>(io, "127.0.0.1", "8888", argc, argv);
+
+	auto local_server = std::make_shared<mydak::local_server>(io, client);
+
+	mydak::coh::detached(client->initialize(0));
+
+	io.run();
+
+	io.restart();
 
 	asio::co_spawn(
-		local_server->io,
-		client->initialize(0),
-		asio::detached
-	);
-
-	local_server->io.run();
-
-	local_server->io.restart();
-
-	asio::co_spawn(
-		local_server->io,
+		io,
 		client->receive(),
 		asio::detached
 	);
 
 	asio::co_spawn(
-		local_server->io,
+		io,
 		client->send(),
 		asio::detached
 	);
 
 
+	//
 	std::thread thread(mydak::input, client, std::ref(io), local_server);
 	thread.detach();
 
-	//asio::ip::tcp::acceptor acceptor(local_server->io, asio::ip::tcp::endpoint(asio::ip::make_address("127.0.0.1"), 6767));
-	//local_server->localRecieve(acceptor);
-
-	local_server->io.run();
+	io.run();
 
 	return 0;
 }

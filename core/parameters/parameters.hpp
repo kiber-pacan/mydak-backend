@@ -15,7 +15,7 @@
 #include "util/logger.hpp"
 
 #include "parameters_base.hpp"
-#include "../util/proto.hpp"
+#include "util/proto.hpp"
 
 namespace mydak::args {
     namespace details {
@@ -128,8 +128,9 @@ namespace mydak::args {
         make_parameter<"--connect_tries", details::TYPE_SMALL_NUMBER>(1, 64, 3),
         make_parameter<"--wait_time", details::TYPE_SMALL_NUMBER>(1, 64, 3),
         make_parameter<"--wait_time_add", details::TYPE_SMALL_NUMBER>(1, 64, 3),
-        make_parameter<"--public-key", details::TYPE_STRING>(proto::PUBLIC_KEY_L, proto::PUBLIC_KEY_L, ""),
-        make_parameter<"--recipient", details::TYPE_STRING>(proto::PUBLIC_KEY_L, proto::PUBLIC_KEY_L, "")
+        make_parameter<"--private-key", details::TYPE_STRING>(proto::E2E_KEYS_L, proto::E2E_KEYS_L, ""),
+        make_parameter<"--recipient", details::TYPE_STRING>(proto::E2E_KEYS_L, proto::E2E_KEYS_L, ""),
+        make_parameter<"--local-server", details::TYPE_SMALL_NUMBER>(0, 1, 0)
     );
 
     static constexpr std::size_t parameters_count = std::get<0>(tuple_boy).size();
@@ -141,8 +142,8 @@ namespace mydak::args {
 
 
     // Indices for each option inside the parameters array
-    static constexpr mydak::tools::static_map<std::size(parameters), std::size_t> options_indices = std::apply([](auto&&... args) {
-        return mydak::tools::index_static_map(args.c_str()...);
+    static constexpr tools::static_map<std::size(parameters), std::size_t> options_indices = std::apply([](auto&&... args) {
+        return tools::index_static_map(args.c_str()...);
     }, options_tuple);
 
     [[nodiscard]] consteval auto get_parameters() {return parameters;}

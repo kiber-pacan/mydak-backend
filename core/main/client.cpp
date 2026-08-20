@@ -66,7 +66,7 @@ asio::awaitable<void> mydak::client::receive() const {
 		for (;;)  {
 			// [key][size]
 			// normally 64 + 4
-			std::array<char, proto::PUBLIC_KEY_L + proto::MESSAGE_SIZE_L> key_and_size{};
+			std::array<char, proto::E2E_KEYS_L + proto::MESSAGE_SIZE_L> key_and_size{};
 			co_await asio::async_read(*socket, asio::buffer(key_and_size, key_and_size.size()), asio::use_awaitable);
 
 
@@ -76,7 +76,7 @@ asio::awaitable<void> mydak::client::receive() const {
 				&message_size,
 				std::span(key_and_size)
 				.subspan(
-					proto::PUBLIC_KEY_L,
+					proto::E2E_KEYS_L,
 					proto::MESSAGE_SIZE_L
 				)
 				.data(),
@@ -85,7 +85,7 @@ asio::awaitable<void> mydak::client::receive() const {
 			if (message_size < 1) continue;
 
 			// Getting first 64 chars aka public key
-			std::string key(std::span(key_and_size).subspan(0, proto::PUBLIC_KEY_L).data(), proto::PUBLIC_KEY_L);
+			std::string key(std::span(key_and_size).subspan(0, proto::E2E_KEYS_L).data(), proto::E2E_KEYS_L);
 
 			std::string raw_message{}; raw_message.resize(message_size);
 
@@ -121,11 +121,11 @@ asio::awaitable<void> mydak::client::receive() const {
 asio::awaitable<void> mydak::client::send() {
 	try {
 		// Getting new public key if public_key is not the right size (Probably empty!)
-		if (public_key.size() != proto::PUBLIC_KEY_L) {
-			std::array<char, proto::PUBLIC_KEY_L> public_key_array{};
+		if (std::size(private_key) != proto::E2E_KEYS_L) {
+			std::array<char, proto::E2E_KEYS_L> public_key_array{};
 
-			constexpr size_t bin_len = proto::PUBLIC_KEY_L / 2;
-			constexpr size_t hex_len = proto::PUBLIC_KEY_L + 1;
+			constexpr size_t bin_len = proto::E2E_KEYS_L / 2;
+			constexpr size_t hex_len = proto::E2E_KEYS_L + 1;
 
 			unsigned char bin[bin_len];
 			std::array<char, hex_len> hex{};
@@ -136,10 +136,10 @@ asio::awaitable<void> mydak::client::send() {
 				throw std::runtime_error("Failed to convert bytes to hex string");
 			}
 
-			std::ranges::copy_n(hex.begin(), proto::PUBLIC_KEY_L, public_key_array.begin());
+			std::ranges::copy_n(hex.begin(), proto::E2E_KEYS_L, public_key_array.begin());
 			public_key = std::string(public_key_array.data(), public_key_array.size());
 
-			std::cout << std::string(public_key) << std::endl;
+			std::cout << public_key << std::endl;
 		}
 
 		// Sending our public key so we can get registered on the server

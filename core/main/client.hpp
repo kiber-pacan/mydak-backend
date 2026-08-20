@@ -28,7 +28,8 @@ namespace mydak {
 				wait_time,
 				wait_time_add,
 				public_key,
-				recipient
+				recipient,
+				local_server
 			);
 		}
 
@@ -58,11 +59,15 @@ namespace mydak {
 
 		std::string ip, port;
 
-		int8_t connect_tries{};
-		int8_t wait_time{};
-		int8_t wait_time_add{};
-		std::string public_key{};
+		std::int8_t connect_tries{};
+		std::int8_t wait_time{};
+		std::int8_t wait_time_add{};
 		std::string recipient{};
+		std::int8_t local_server;
+
+
+		std::string public_key{};
+		std::array<char, proto::E2E_KEYS_L> private_key{};
 	
 		std::shared_ptr<send_channel> send_channel_ptr;
 		std::shared_ptr<send_channel> receive_channel_ptr;
