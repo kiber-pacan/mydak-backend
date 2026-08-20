@@ -22,9 +22,45 @@
 #include <limits>
 #include <unordered_set>
 
+#include "local_server.hpp"
 #include "main/client.hpp"
 
 namespace asio = boost::asio;
+
+namespace mydak {
+	static void input(const std::shared_ptr<client>& client, asio::io_context& io, const std::shared_ptr<local_server>& local_server) {
+		for (;;) {
+			// INPUT
+			std::string input{};
+			std::getline(std::cin, input);
+
+
+			if (input == "/server") {
+				asio::post(io, [local_server, &io]() {
+					local_server->acceptor = std::make_shared<asio::ip::tcp::acceptor>(
+						io,
+						asio::ip::tcp::endpoint(asio::ip::make_address("127.0.0.1"), 6767)
+					);
+					local_server->local_receive();
+				});
+			} else {
+				client->messages.emplace(input);
+				boost::system::error_code e;
+
+				asio::co_spawn(
+					io,
+					[client]() -> asio::awaitable<void>{
+						boost::system::error_code e;
+						co_await client->send_channel_ptr->async_send(e, asio::use_awaitable);
+						co_return;
+					},
+					asio::detached
+				);
+			}
+		}
+	}
+}
+
 
 
 int main(int argc, char* argv[]) {
@@ -33,7 +69,37 @@ int main(int argc, char* argv[]) {
 	asio::io_context io{};
 	std::shared_ptr<mydak::client> client = std::make_shared<mydak::client>(io, "127.0.0.1", "8888", argc, argv);
 	
+	std::shared_ptr<mydak::local_server> local_server = std::make_shared<mydak::local_server>(io, client);
 
+
+	asio::co_spawn(
+		local_server->io,
+		client->initialize(0),
+		asio::detached
+	);
+
+	local_server->io.run();
+
+	local_server->io.restart();
+
+	asio::co_spawn(
+		local_server->io,
+		client->receive(),
+		asio::detached
+	);
+
+	asio::co_spawn(
+		local_server->io,
+		client->send(),
+		asio::detached
+	);
+
+
+	std::thread thread(mydak::input, client, std::ref(io), local_server);
+	thread.detach();
+
+	//asio::ip::tcp::acceptor acceptor(local_server->io, asio::ip::tcp::endpoint(asio::ip::make_address("127.0.0.1"), 6767));
+	//local_server->localRecieve(acceptor);
 
 	local_server->io.run();
 

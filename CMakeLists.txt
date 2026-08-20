@@ -38,11 +38,9 @@ add_executable(${EXECUTABLE_NAME}
 
         core/parameters/parameters_accessor.hpp
         core/parameters/parameters_accessor.cpp
+        core/main/local_server.cpp
+        core/main/local_server.hpp
 
-        core/main/mydak_ffi.cpp
-        core/main/mydak_ffi.hpp
-        core/main/handler.cpp
-        core/main/handler.hpp
 )
 
 target_include_directories(${EXECUTABLE_NAME} PRIVATE
