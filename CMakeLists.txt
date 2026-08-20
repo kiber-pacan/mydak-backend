@@ -15,10 +15,10 @@ set(EXECUTABLE_NAME ${PROJECT_NAME})
 add_executable(${EXECUTABLE_NAME}
         core/main.cpp
 
-        core/client.hpp
-        core/client.cpp
+        core/main/client.hpp
+        core/main/client.cpp
 
-        core/proto.hpp
+        core/util/proto.hpp
 
         core/util/logger.cpp
         core/util/logger.hpp
@@ -38,11 +38,17 @@ add_executable(${EXECUTABLE_NAME}
 
         core/parameters/parameters_accessor.hpp
         core/parameters/parameters_accessor.cpp
+
+        core/main/mydak_ffi.cpp
+        core/main/mydak_ffi.hpp
+        core/main/handler.cpp
+        core/main/handler.hpp
 )
 
 target_include_directories(${EXECUTABLE_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}
-        ${CMAKE_CURRENT_SOURCE_DIR}/core/
+        ${CMAKE_CURRENT_SOURCE_DIR}/core
+        ${CMAKE_CURRENT_SOURCE_DIR}/core/main
         ${CMAKE_CURRENT_SOURCE_DIR}/core/util
         ${CMAKE_CURRENT_SOURCE_DIR}/core/parameters
 )

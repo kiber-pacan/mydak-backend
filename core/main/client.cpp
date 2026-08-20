@@ -15,7 +15,7 @@
 #include "brotli.hpp"
 #include "logger.hpp"
 #include "namer.hpp"
-#include "proto.hpp"
+#include "util/proto.hpp"
 
 namespace asio = boost::asio;
 
@@ -23,30 +23,30 @@ asio::awaitable<void> mydak::client::initialize(const int current_try) {
 	try {
 		int wait_seconds = wait_time * (current_try > 0) + (wait_time_add == -1 ? wait_time : wait_time_add) * std::max(0, current_try - 1);
 		
-		if (wait_seconds > 0) mydak::logger::log_debug(std::format("Waiting: {} seconds", wait_seconds));
+		if (wait_seconds > 0) logger::log_debug(std::format("Waiting: {} seconds", wait_seconds));
 		
 		asio::steady_timer timer(io, asio::chrono::seconds(wait_seconds));
 		co_await timer.async_wait(asio::use_awaitable);
 		
-		if (wait_seconds > 0) mydak::logger::log_debug("Trying to connect...");
+		if (wait_seconds > 0) logger::log_debug("Trying to connect...");
 
 		// Trying to connect
 		asio::ip::tcp::resolver resolver(io);
 		socket = std::make_shared<asio::ip::tcp::socket>(io);
 		co_await asio::async_connect(*socket, resolver.resolve(ip, port));
 
-		mydak::logger::log_debug("Connected!");
+		logger::log_debug("Connected!");
 
 		// Creating channels
-		send_channel = std::make_shared<mydak::send_channel>(socket->get_executor());
-		receive_channel = std::make_shared<mydak::send_channel>(socket->get_executor());
+		send_channel_ptr = std::make_shared<send_channel>(socket->get_executor());
+		receive_channel_ptr = std::make_shared<send_channel>(socket->get_executor());
 	}
 	catch (const boost::system::system_error& e) {
-		mydak::logger::exception_func(e);
+		logger::exception_func(e);
 
 		// Exit after N tries
 		if (current_try >= connect_tries - 1) {
-			mydak::logger::exit(std::format("Failed after {} tries!", connect_tries));
+			logger::exit(std::format("Failed after {} tries!", connect_tries));
 		}
 
 		// Another try
@@ -66,7 +66,7 @@ asio::awaitable<void> mydak::client::receive() const {
 		for (;;)  {
 			// [key][size]
 			// normally 64 + 4
-			std::array<char, mydak::proto::PUBLIC_KEY_L + mydak::proto::MESSAGE_SIZE_L> key_and_size{};
+			std::array<char, proto::PUBLIC_KEY_L + proto::MESSAGE_SIZE_L> key_and_size{};
 			co_await asio::async_read(*socket, asio::buffer(key_and_size, key_and_size.size()), asio::use_awaitable);
 
 
@@ -76,22 +76,22 @@ asio::awaitable<void> mydak::client::receive() const {
 				&message_size,
 				std::span(key_and_size)
 				.subspan(
-					mydak::proto::PUBLIC_KEY_L,
-					mydak::proto::MESSAGE_SIZE_L
+					proto::PUBLIC_KEY_L,
+					proto::MESSAGE_SIZE_L
 				)
 				.data(),
-				mydak::proto::MESSAGE_SIZE_L
+				proto::MESSAGE_SIZE_L
 			);
 			if (message_size < 1) continue;
 
 			// Getting first 64 chars aka public key
-			std::string key(std::span(key_and_size).subspan(0, mydak::proto::PUBLIC_KEY_L).data(), mydak::proto::PUBLIC_KEY_L);
+			std::string key(std::span(key_and_size).subspan(0, proto::PUBLIC_KEY_L).data(), proto::PUBLIC_KEY_L);
 
 			std::string raw_message{}; raw_message.resize(message_size);
 
 			// Getting brotli encoded string
 			co_await asio::async_read(*socket, asio::buffer(raw_message.data(), raw_message.size()), asio::use_awaitable);
-			std::string message = mydak::brotli::decompress(raw_message);
+			std::string message = brotli::decompress(raw_message);
 
 			#pragma region gap shenanigans
 			winsize size{};
@@ -108,11 +108,11 @@ asio::awaitable<void> mydak::client::receive() const {
 
 			std::string formatted = std::format("{}{}", gap, message);
 			
-			std::cout << mydak::namer::get_name(key) << " : " << formatted << std::endl;
+			std::cout << namer::get_name(key) << " : " << formatted << std::endl;
 		}
 	}
 	catch (const boost::system::system_error& e) {
-		mydak::logger::exception_func(e);
+		logger::exception_func(e);
 	}
 	co_return;
 }
@@ -121,11 +121,11 @@ asio::awaitable<void> mydak::client::receive() const {
 asio::awaitable<void> mydak::client::send() {
 	try {
 		// Getting new public key if public_key is not the right size (Probably empty!)
-		if (public_key.size() != mydak::proto::PUBLIC_KEY_L) {
-			std::array<char, mydak::proto::PUBLIC_KEY_L> public_key_array{};
+		if (public_key.size() != proto::PUBLIC_KEY_L) {
+			std::array<char, proto::PUBLIC_KEY_L> public_key_array{};
 
-			constexpr size_t bin_len = mydak::proto::PUBLIC_KEY_L / 2;
-			constexpr size_t hex_len = mydak::proto::PUBLIC_KEY_L + 1;
+			constexpr size_t bin_len = proto::PUBLIC_KEY_L / 2;
+			constexpr size_t hex_len = proto::PUBLIC_KEY_L + 1;
 
 			unsigned char bin[bin_len];
 			std::array<char, hex_len> hex{};
@@ -136,7 +136,7 @@ asio::awaitable<void> mydak::client::send() {
 				throw std::runtime_error("Failed to convert bytes to hex string");
 			}
 
-			std::ranges::copy_n(hex.begin(), mydak::proto::PUBLIC_KEY_L, public_key_array.begin());
+			std::ranges::copy_n(hex.begin(), proto::PUBLIC_KEY_L, public_key_array.begin());
 			public_key = std::string(public_key_array.data(), public_key_array.size());
 
 			std::cout << std::string(public_key) << std::endl;
@@ -147,7 +147,7 @@ asio::awaitable<void> mydak::client::send() {
 
 		// Main loop
 		for (;;) {
-			co_await send_channel->async_receive(asio::use_awaitable);
+			co_await send_channel_ptr->async_receive(asio::use_awaitable);
 
 			for (; not messages.empty(); messages.pop()) {
 				std::string& message_raw = messages.front();
@@ -173,15 +173,15 @@ asio::awaitable<void> mydak::client::send() {
 				
 				
 				// Preparing greetings packet
-				std::array prefix{mydak::proto::GREETINGS_PREFIX};
-				std::string message_compressed = mydak::brotli::compress(message_raw);
+				std::array prefix{proto::GREETINGS_PREFIX};
+				std::string message_compressed = brotli::compress(message_raw);
 				const auto raw_size = static_cast<uint32_t>(message_compressed.size());
-				std::array<char, mydak::proto::MESSAGE_SIZE_L> size{};
+				std::array<char, proto::MESSAGE_SIZE_L> size{};
 
 				if constexpr (std::endian::native == std::endian::big) {
-					size = std::bit_cast<std::array<char, mydak::proto::MESSAGE_SIZE_L>>(std::byteswap(raw_size));
+					size = std::bit_cast<std::array<char, proto::MESSAGE_SIZE_L>>(std::byteswap(raw_size));
 				} else {
-					size = std::bit_cast<std::array<char, mydak::proto::MESSAGE_SIZE_L>>(raw_size);
+					size = std::bit_cast<std::array<char, proto::MESSAGE_SIZE_L>>(raw_size);
 				}
 
 				// GREETINGS

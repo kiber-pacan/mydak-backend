@@ -15,7 +15,7 @@
 #include "util/logger.hpp"
 
 #include "parameters_base.hpp"
-#include "proto.hpp"
+#include "../util/proto.hpp"
 
 namespace mydak::args {
     namespace details {

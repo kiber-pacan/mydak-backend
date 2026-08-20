@@ -14,7 +14,7 @@ namespace asio = boost::asio;
 namespace mydak { using send_channel = asio::experimental::channel<void(boost::system::error_code)>; }
 
 namespace mydak {
-	struct client : public std::enable_shared_from_this<client> {
+	struct client : std::enable_shared_from_this<client> {
 
 		client(asio::io_context& io, const char*&& ip, const char*&& port, int argc, char* argv[])
 			:
@@ -34,8 +34,8 @@ namespace mydak {
 
 		// I think it's just easier to do this shit
 		template<typename... T>
-		void set_parameters(const mydak::args::parameters_accessor parameters_accessor, T&... parameters) {
-			mydak::tools::constexpr_for<args::parameters_count>(
+		void set_parameters(const args::parameters_accessor parameters_accessor, T&... parameters) {
+			tools::constexpr_for<args::parameters_count>(
 				[&] (auto index) {
 					parameters...[index] = parameters_accessor.get<index>();
 				}
@@ -64,8 +64,8 @@ namespace mydak {
 		std::string public_key{};
 		std::string recipient{};
 	
-		std::shared_ptr<mydak::send_channel> send_channel;
-		std::shared_ptr<mydak::send_channel> receive_channel;
+		std::shared_ptr<send_channel> send_channel_ptr;
+		std::shared_ptr<send_channel> receive_channel_ptr;
 	
 		std::queue<std::string> messages{};
 	};
