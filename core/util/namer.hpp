@@ -83,39 +83,33 @@ namespace mydak::namer {
             "gneiss", "schist", "rapids", "spring", "brook", "stream", "creek", "estuary"
         };
 
-        inline std::unordered_map<std::string, std::string> names_cache{};
+        inline std::unordered_map<std::uint16_t, std::string> names_cache{};
     }
 
 
 
-    inline std::string_view get_name(const std::string& public_key) {
+    inline std::string_view get_name(std::uint16_t value) {
         // Check if name is cached
-        const auto it = detail::names_cache.find(public_key);
-        if (it != detail::names_cache.end()) return it->second;
+        auto [it, inserted] = detail::names_cache.try_emplace(value);
 
-        // Check if public_key is right length
-        if (std::size(public_key) != proto::E2E_KEYS_L * 2) return "missingno";
+        if (inserted) {
+            // Getting max value of key so we can get right adj and noun
+            constexpr std::size_t max_value = std::numeric_limits<std::decay_t<decltype(value)>>::max();
 
-        // Getting max value of key so we can get right adj and noun
-        constexpr std::size_t max_value = 256 * proto::E2E_KEYS_L;
+            // Getting indices for nouns and adj, also number so we almost cannot get the same names
+            const std::size_t adj_index = value * std::size(detail::adjectives) / max_value;
+            const std::size_t noun_index = (max_value - value) * std::size(detail::nouns) / max_value;
+            const std::size_t number = value * 16384 / max_value;
 
-        std::size_t value = 0;
-        for (const char character : public_key) {
-            value += character;
+            // Caching the name
+            it->second = std::format("{}-{}-{}",
+                detail::adjectives[std::clamp(adj_index, static_cast<std::size_t>(0), std::size(detail::adjectives) - 1)],
+                detail::nouns[std::clamp(noun_index, static_cast<std::size_t>(0), std::size(detail::nouns) - 1)],
+                number
+            );
         }
 
-
-        // Getting indices for nouns and adj, also number so we almost cannot get the same names
-        std::cout << value << " " << max_value << std::endl;
-        const std::size_t index1 = value / max_value * std::size(detail::adjectives);
-        const std::size_t index2 = (max_value - value) / max_value * std::size(detail::nouns);
-        const std::size_t number = 1;
-
-        // Caching the name
-        auto& name = detail::names_cache[public_key];
-        name = std::format("{}-{}-{}",detail::adjectives[index1], detail::nouns[index2], number);
-
-        return name;
+        return it->second;
     }
 }
 
