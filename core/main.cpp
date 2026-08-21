@@ -25,6 +25,7 @@
 #include "local_server.hpp"
 #include "client.hpp"
 #include "coh.hpp"
+#include "identity.hpp"
 #include "namer.hpp"
 
 namespace asio = boost::asio;
@@ -66,39 +67,11 @@ namespace mydak {
 
 
 
-namespace mydak {
-	struct key_pair {
-		std::array<unsigned char, proto::E2E_KEYS_L> public_key{};
-		std::array<unsigned char, proto::E2E_KEYS_L> private_key{};
-
-		std::string bin2hex_public_key() {
-			std::string hex(proto::E2E_KEYS_L * 2 + 1, '\0');
-			sodium_bin2hex(hex.data(), std::size(hex), public_key.data(), std::size(public_key));
-			hex.resize(proto::E2E_KEYS_L * 2); // Cut null terminator
-			return hex;
-		}
-
-		std::string bin2hex_private_key() {
-			std::string hex(proto::E2E_KEYS_L * 2 + 1, '\0');
-			sodium_bin2hex(hex.data(), std::size(hex), private_key.data(), std::size(private_key));
-		    hex.resize(proto::E2E_KEYS_L * 2); // Cut null terminator
-			return hex;
-		}
-	};
-}
 
 int main(int argc, char* argv[]) {
-	if (sodium_init() != 0) throw std::runtime_error("Failed to init sodium");
+	if (sodium_init() != 0)
+		throw std::runtime_error("Failed to init sodium!");
 
-
-	mydak::key_pair key_pair{};
-
-	if (crypto_box_keypair(key_pair.public_key.data(), key_pair.private_key.data()) != 0)
-		throw std::runtime_error("Failed to generate key");
-
-	std::cout << mydak::namer::get_name(key_pair.bin2hex_public_key()) << std::endl;
-
-	return 0;
 
 	auto& io = mydak::coh::io();
 	auto client = std::make_shared<mydak::client>(io, "127.0.0.1", "8888", argc, argv);
@@ -107,24 +80,13 @@ int main(int argc, char* argv[]) {
 
 	mydak::coh::detached(client->initialize(0));
 
+	// TODO MAYBE REMOVE
 	io.run();
-
 	io.restart();
 
-	asio::co_spawn(
-		io,
-		client->receive(),
-		asio::detached
-	);
+	mydak::coh::detached(client->receive());
+	mydak::coh::detached(client->send());
 
-	asio::co_spawn(
-		io,
-		client->send(),
-		asio::detached
-	);
-
-
-	//
 	std::thread thread(mydak::input, client, std::ref(io), local_server);
 	thread.detach();
 
