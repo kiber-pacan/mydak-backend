@@ -48,16 +48,13 @@ namespace mydak {
 				});
 			} else {
 				client->messages.emplace(input);
-				boost::system::error_code e;
 
-				asio::co_spawn(
-					io,
+				coh::detached(
 					[client]() -> asio::awaitable<void>{
-						boost::system::error_code e;
+						const boost::system::error_code e;
 						co_await client->send_channel_ptr->async_send(e, asio::use_awaitable);
 						co_return;
-					},
-					asio::detached
+					}
 				);
 			}
 		}

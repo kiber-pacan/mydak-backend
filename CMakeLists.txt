@@ -46,7 +46,6 @@ add_executable(${EXECUTABLE_NAME}
         core/parameters/parameters_accessor.cpp
         core/main/local_server.cpp
         core/main/local_server.hpp
-        core/util/coh.cpp
         core/util/coh.hpp
         core/util/identity.hpp
         core/util/identity.hpp

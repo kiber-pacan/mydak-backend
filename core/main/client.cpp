@@ -13,6 +13,7 @@
 #include "client.hpp"
 
 #include "brotli.hpp"
+#include "coh.hpp"
 #include "logger.hpp"
 #include "namer.hpp"
 #include "util/proto.hpp"
@@ -50,10 +51,8 @@ asio::awaitable<void> mydak::client::initialize(const int current_try) {
 		}
 
 		// Another try
-		asio::co_spawn(
-			io,
-			initialize(current_try + 1),
-			asio::detached
+		coh::detached(
+			initialize(current_try + 1)
 		);
 	}
 	

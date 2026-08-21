@@ -4,6 +4,7 @@
 
 #include "local_server.hpp"
 #include "client.hpp"
+#include "coh.hpp"
 
 // Receive messages from frontend
 asio::awaitable<void> mydak::server_connection::receive_loop() {
@@ -94,15 +95,7 @@ void mydak::local_server::handle_connection(std::shared_ptr<server_connection> c
     // Repeat connection loop
     local_receive();
 
-    asio::co_spawn(
-        io,
-        connection->receive_loop(),
-        asio::detached
-    );
+    coh::detached(connection->receive_loop());
 
-    asio::co_spawn(
-        io,
-        connection->send_loop(),
-        asio::detached
-    );
+    coh::detached(connection->send_loop());
 }
