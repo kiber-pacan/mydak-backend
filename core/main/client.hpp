@@ -6,8 +6,10 @@
 #include <boost/asio/experimental/channel.hpp>
 #include <queue>
 
+#include "identity.hpp"
 #include "parameters.hpp"
 #include "parameters_accessor.hpp"
+#include "toml++/toml.h"
 
 namespace asio = boost::asio;
 
@@ -29,21 +31,31 @@ namespace mydak {
 				wait_time_add,
 				public_key,
 				recipient,
-				local_server
+				local_server,
+				password
 			);
+
+			// KEYPAIR START
+
+
+			identity.initialize(public_key, password);
+			// KEYPAIR END
 		}
 
 		// I think it's just easier to do this shit
 		template<typename... T>
-		void set_parameters(const args::parameters_accessor parameters_accessor, T&... parameters) {
+		static void set_parameters(const args::parameters_accessor parameters_accessor, T&... parameters) {
 			tools::constexpr_for<args::parameters_count>(
 				[&] (auto index) {
 					parameters...[index] = parameters_accessor.get<index>();
 				}
 			);
-
 		}
-	
+
+		static void load_keypair(std::string_view private_key_path) {
+			toml::table keypair;
+		}
+
 	
 		asio::awaitable<void> initialize(int current_try);
  
@@ -65,10 +77,10 @@ namespace mydak {
 		std::string recipient{};
 		std::int8_t local_server;
 
-
+		identity identity{};
 		std::string public_key{};
-		std::array<char, proto::E2E_KEYS_L> private_key{};
-	
+		std::string password{};
+
 		std::shared_ptr<send_channel> send_channel_ptr;
 		std::shared_ptr<send_channel> receive_channel_ptr;
 	

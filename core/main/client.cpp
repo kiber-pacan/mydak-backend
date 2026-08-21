@@ -108,7 +108,7 @@ asio::awaitable<void> mydak::client::receive() const {
 
 			std::string formatted = std::format("{}{}", gap, message);
 			
-			std::cout << namer::get_name(key) << " : " << formatted << std::endl;
+			std::cout << namer::get_name(identity.public_value) << " : " << formatted << std::endl;
 		}
 	}
 	catch (const boost::system::system_error& e) {
@@ -121,7 +121,7 @@ asio::awaitable<void> mydak::client::receive() const {
 asio::awaitable<void> mydak::client::send() {
 	try {
 		// Getting new public key if public_key is not the right size (Probably empty!)
-		if (std::size(private_key) != proto::E2E_KEYS_L) {
+		if (std::size(identity.public_hex) != proto::E2E_KEYS_L) {
 			std::array<char, proto::E2E_KEYS_L> public_key_array{};
 
 			constexpr size_t bin_len = proto::E2E_KEYS_L / 2;
