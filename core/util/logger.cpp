@@ -94,31 +94,27 @@ void mydak::logger::log_func_debug_error(
 void mydak::logger::exit(
 	const std::string_view message
 ) {
-	std::cerr << message << "\n";
-	std::exit(1);
+	throw std::runtime_error(std::string(message));
 }
 
 void mydak::logger::exit(
 	const boost::system::system_error& e
 ) {
-	std::cerr << std::format("{} (code: {})", e.code().message(), e.code().value()) << "\n";
-	std::exit(1);
+	throw std::runtime_error(std::format("{} (code: {})", e.code().message(), e.code().value()));
 }
 
 void mydak::logger::exit_func(
 	const std::string_view message,
 	const std::source_location source
 ) {
-	std::cerr << std::format("{} : {}", get_func_name(source.function_name()), !message.empty() ? std::format(" : {}", message) : "") << "\n";
-	std::exit(1);
+	throw std::runtime_error(std::format("{} : {}", get_func_name(source.function_name()), !message.empty() ? std::format(" : {}", message) : ""));
 }
 
 void mydak::logger::exit_func(
 	const boost::system::system_error& e,
 	const std::source_location source
 ) {
-	std::cerr << std::format("{} : {} (code: {})", get_func_name(source.function_name()), e.code().message(), e.code().value()) << "\n";
-	std::exit(1);
+	throw std::runtime_error(std::format("{} : {} (code: {})", get_func_name(source.function_name()), e.code().message(), e.code().value()));
 }
 
 
