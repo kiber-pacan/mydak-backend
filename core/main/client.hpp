@@ -74,7 +74,7 @@ namespace mydak {
 		std::int8_t connect_tries{};
 		std::int8_t wait_time{};
 		std::int8_t wait_time_add{};
-		std::string recipient{};
+		std::array<char, proto::E2E_KEYS_L> recipient{};
 		std::int8_t local_server;
 
 		identity identity{};

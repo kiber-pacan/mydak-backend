@@ -17,7 +17,12 @@
 #include "toml++/toml.hpp"
 
 namespace mydak {
+    struct detail {
+        // public key - shared secret
+        std::map<std::array<unsigned char, proto::E2E_KEYS_L>, std::array<unsigned char, proto::E2E_KEYS_L>> shared_secrets_cache;
+    };
     struct identity {
+        #pragma region variables
         std::array<unsigned char, proto::E2E_KEYS_L / 2> public_key{};
         std::array<unsigned char, proto::E2E_KEYS_L / 2> private_key{};
         std::string public_hex;
@@ -32,10 +37,10 @@ namespace mydak {
         std::string_view password_view;
         std::string filename;
 
-        // public key - shared secret
-        std::map<std::array<unsigned char, proto::E2E_KEYS_L>, std::array<unsigned char, proto::E2E_KEYS_L>> shared_secrets_cache;
+        detail detail;
+        #pragma endregion
 
-
+        #pragma region conversions
         template <typename T, std::size_t N>
         static std::string bin2hex(const std::array<T, N>& bin) {
             std::array<char, N * 2 + 1> hex; // NOLINT(*-pro-type-member-init)
@@ -49,7 +54,9 @@ namespace mydak {
             sodium_hex2bin(bin.data(), std::size(bin), hex.data(), std::size(hex), nullptr, nullptr, nullptr);
             return bin;
         }
+        #pragma endregion
 
+        #pragma region initialization
         void initialize_credentials() {
             if (crypto_box_keypair(public_key.data(), private_key.data()) != 0)
                 throw std::runtime_error("Failed to generate key!");
@@ -102,9 +109,9 @@ namespace mydak {
             initialize_credentials();
             save_keypair();
         }
+        #pragma endregion
 
-
-
+        #pragma region save-load
         void save_keypair() {
             try {
                 toml::table keypair_file;
@@ -194,21 +201,24 @@ namespace mydak {
             }
         }
 
+        #pragma endregion
 
+        #pragma region secret
         std::array<unsigned char, proto::E2E_KEYS_L> get_shared_secret(
             const std::array<unsigned char, proto::E2E_KEYS_L> &recipient_key
         ) {
             // ReSharper disable once CppTooWideScopeInitStatement
-            const auto it = shared_secrets_cache.find(recipient_key);
-            if (it != shared_secrets_cache.end()) return it->second;
+            const auto it = detail.shared_secrets_cache.find(recipient_key);
+            if (it != detail.shared_secrets_cache.end()) return it->second;
 
             std::array<unsigned char, proto::E2E_KEYS_L> shared_secret; // NOLINT(*-pro-type-member-init)
             if (crypto_box_beforenm(shared_secret.data(), recipient_key.data(), public_key.data()) != 0)
                 throw std::runtime_error("Failed to encode create shared secret!");
             return shared_secret;
         }
+        #pragma endregion
 
-
+        #pragma region messages
         auto encode_message(
             const std::array<unsigned char, proto::E2E_KEYS_L> &recipient_key,
             const std::vector<unsigned char>& message
@@ -234,20 +244,18 @@ namespace mydak {
             const std::vector<unsigned char>& encrypted_message,
             std::array<unsigned char, crypto_secretbox_NONCEBYTES> message_nonce
         ) {
-            const auto it = shared_secrets_cache.find(recipient_key);
-            if (it == shared_secrets_cache.end()) throw std::runtime_error("Failed to find shared secret!");
-
             std::vector<unsigned char> decrypted_message;
             if (crypto_box_open_easy_afternm(
                 decrypted_message.data(),
                 encrypted_message.data(),
                 std::size(encrypted_message),
                 message_nonce.data(),
-                it->second.data()
+                get_shared_secret(recipient_key).data()
             ) != 0) throw std::runtime_error("Failed to decode message!");
 
             return decrypted_message;
         }
+        #pragma endregion
     };
 }
 

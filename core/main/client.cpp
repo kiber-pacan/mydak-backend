@@ -177,16 +177,16 @@ asio::awaitable<void> mydak::client::send() {
 					size = std::bit_cast<std::array<char, proto::MESSAGE_SIZE_L>>(raw_size);
 				}
 
-				std::array<unsigned char, crypto_secretbox_NONCEBYTES> nonce;
-				randombytes_buf(nonce.data(), nonce.size());
 
 				// GREETINGS
 				co_await asio::async_write(*socket, asio::buffer(prefix), asio::use_awaitable);
 				co_await asio::async_write(*socket, asio::buffer(size), asio::use_awaitable);
 				co_await asio::async_write(*socket, asio::buffer(recipient), asio::use_awaitable);
-				co_await asio::async_write(*socket, asio::buffer(nonce), asio::use_awaitable);
 
-				
+				std::array<unsigned char, crypto_secretbox_NONCEBYTES> nonce;
+				randombytes_buf(nonce.data(), nonce.size());
+				const auto encrypted_message = identity.encode_message(rec);
+
 				// MESSAGE
 				co_await asio::async_write(*socket, asio::buffer(message_compressed), asio::use_awaitable);
 			}
