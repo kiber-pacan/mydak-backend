@@ -32,6 +32,10 @@ namespace mydak {
         std::string_view password_view;
         std::string filename;
 
+        // public key - shared secret
+        std::map<std::array<unsigned char, proto::E2E_KEYS_L>, std::array<unsigned char, proto::E2E_KEYS_L>> shared_secrets_cache;
+
+
         template <typename T, std::size_t N>
         static std::string bin2hex(const std::array<T, N>& bin) {
             std::array<char, N * 2 + 1> hex; // NOLINT(*-pro-type-member-init)
@@ -126,6 +130,7 @@ namespace mydak {
             }
         }
 
+
         template <std::size_t N, typename T>
         void try_load_value(std::array<T, N>& value, const char* name) {
             toml::table keypair_file = toml::parse_file(filename);
@@ -143,8 +148,6 @@ namespace mydak {
                 value = value_opt.value();
             else throw std::runtime_error(std::format("Invalid {}!", name));
         }
-
-
 
         void load_keypair() {
             try {
@@ -189,6 +192,61 @@ namespace mydak {
             } catch (const std::exception& e) {
                 logger::exit_func(e.what());
             }
+        }
+
+
+        std::array<unsigned char, proto::E2E_KEYS_L> get_shared_secret(
+            const std::array<unsigned char, proto::E2E_KEYS_L> &recipient_key
+        ) {
+            // ReSharper disable once CppTooWideScopeInitStatement
+            const auto it = shared_secrets_cache.find(recipient_key);
+            if (it != shared_secrets_cache.end()) return it->second;
+
+            std::array<unsigned char, proto::E2E_KEYS_L> shared_secret; // NOLINT(*-pro-type-member-init)
+            if (crypto_box_beforenm(shared_secret.data(), recipient_key.data(), public_key.data()) != 0)
+                throw std::runtime_error("Failed to encode create shared secret!");
+            return shared_secret;
+        }
+
+
+        auto encode_message(
+            const std::array<unsigned char, proto::E2E_KEYS_L> &recipient_key,
+            const std::vector<unsigned char>& message
+        ) {
+            std::vector<unsigned char> final_message;
+            // [Nonce][MAC][Message]
+            final_message.resize(crypto_box_NONCEBYTES + 16 + std::size(message));
+
+            randombytes_buf(final_message.data(), crypto_box_NONCEBYTES);
+            if (crypto_box_easy_afternm(
+                final_message.data() + crypto_box_NONCEBYTES,
+                message.data(),
+                std::size(message),
+                final_message.data(),
+                get_shared_secret(recipient_key).data()
+                ) != 0) throw std::runtime_error("Failed to encode message!");
+
+            return final_message;
+        }
+
+        auto decode_message(
+            const std::array<unsigned char, proto::E2E_KEYS_L> &recipient_key,
+            const std::vector<unsigned char>& encrypted_message,
+            std::array<unsigned char, crypto_secretbox_NONCEBYTES> message_nonce
+        ) {
+            const auto it = shared_secrets_cache.find(recipient_key);
+            if (it == shared_secrets_cache.end()) throw std::runtime_error("Failed to find shared secret!");
+
+            std::vector<unsigned char> decrypted_message;
+            if (crypto_box_open_easy_afternm(
+                decrypted_message.data(),
+                encrypted_message.data(),
+                std::size(encrypted_message),
+                message_nonce.data(),
+                it->second.data()
+            ) != 0) throw std::runtime_error("Failed to decode message!");
+
+            return decrypted_message;
         }
     };
 }

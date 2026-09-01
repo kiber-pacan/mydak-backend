@@ -69,16 +69,10 @@ asio::awaitable<void> mydak::client::receive() const {
 			co_await asio::async_read(*socket, asio::buffer(key_and_size, key_and_size.size()), asio::use_awaitable);
 
 
-			// Getting message size TODO REPLACE WITH NEWER C++26 STANDARD
 			uint32_t message_size;
 			std::memcpy(
 				&message_size,
-				std::span(key_and_size)
-				.subspan(
-					proto::E2E_KEYS_L,
-					proto::MESSAGE_SIZE_L
-				)
-				.data(),
+				key_and_size.data() + proto::E2E_KEYS_L,
 				proto::MESSAGE_SIZE_L
 			);
 			if (message_size < 1) continue;
@@ -107,7 +101,7 @@ asio::awaitable<void> mydak::client::receive() const {
 
 			std::string formatted = std::format("{}{}", gap, message);
 			
-			std::cout << namer::get_name(identity.public_value) << " : " << formatted << std::endl;
+			logger::log(std::format("{} : {}", namer::get_name(identity.public_value), formatted));
 		}
 	}
 	catch (const boost::system::system_error& e) {
@@ -138,7 +132,7 @@ asio::awaitable<void> mydak::client::send() {
 			std::ranges::copy_n(hex.begin(), proto::E2E_KEYS_L, public_key_array.begin());
 			public_key = std::string(public_key_array.data(), public_key_array.size());
 
-			std::cout << public_key << std::endl;
+			logger::log(public_key);
 		}
 
 		// Sending our public key so we can get registered on the server
@@ -159,14 +153,14 @@ asio::awaitable<void> mydak::client::send() {
 
 						continue;
 					}
-					std::cout << "Something is wrong" << std::endl;
+					logger::log_error("Something is wrong");
 
 					continue;
 				}
 
 				// SET YOUR FUCKING RECIPIENT YOU STUPID WHORE
 				if (recipient.empty()) {
-					std::cout << "No recipient provided. /r <RECIPIENT>" << std::endl;
+					logger::log_error("No recipient provided. /r <RECIPIENT>");
 					continue;
 				}
 				
@@ -183,10 +177,14 @@ asio::awaitable<void> mydak::client::send() {
 					size = std::bit_cast<std::array<char, proto::MESSAGE_SIZE_L>>(raw_size);
 				}
 
+				std::array<unsigned char, crypto_secretbox_NONCEBYTES> nonce;
+				randombytes_buf(nonce.data(), nonce.size());
+
 				// GREETINGS
 				co_await asio::async_write(*socket, asio::buffer(prefix), asio::use_awaitable);
 				co_await asio::async_write(*socket, asio::buffer(size), asio::use_awaitable);
 				co_await asio::async_write(*socket, asio::buffer(recipient), asio::use_awaitable);
+				co_await asio::async_write(*socket, asio::buffer(nonce), asio::use_awaitable);
 
 				
 				// MESSAGE
