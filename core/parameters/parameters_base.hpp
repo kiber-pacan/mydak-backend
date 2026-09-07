@@ -32,6 +32,8 @@ namespace mydak::args {
             } else {
                 return {buffer.data(), result.ptr};
             }
+        } else if constexpr (has_size<decltype(value)>) {
+            return std::string(reinterpret_cast<const char*>(value.data()), value.size());
         } else {
             return std::string(value);
         }
@@ -104,7 +106,7 @@ namespace mydak::args {
     #pragma region Base
     template <typename T>
     requires std::is_arithmetic_v<T>
-    // Parameter base that can have only types with arithmetic operators
+    // Parameter base that can have types only with arithmetic operators
     struct parameter_base_arithmetic : parameter_base<T, T> {
         using parameter_base<T, T>::parameter_base;
 
@@ -134,15 +136,27 @@ namespace mydak::args {
     };
 
 
-    struct parameter_base_string : parameter_base<std::string_view, uint32_t>  {
+    template <std::size_t N>
+    struct parameter_base_chars : parameter_base<std::array<unsigned char, N>, uint32_t>  {
+        using parameter_base = parameter_base<std::array<unsigned char, N>, uint32_t>;
         using parameter_base::parameter_base;
-        void try_set_val(std::string_view value) { this->try_set_val_internal(std::string_view(value)); }
+
+        void try_set_val(const std::array<unsigned char, N>& value) { this->try_set_val_internal(value); }
+    };
+    template <std::size_t N>
+    parameter_base_chars(uint32_t min, uint32_t max, const std::array<unsigned char, N>& value)
+    -> parameter_base_chars<N>;
+
+
+    struct parameter_base_string_view : parameter_base<std::string_view, uint32_t>  {
+        using parameter_base::parameter_base;
+        void try_set_val(const std::string_view value) { this->try_set_val_internal(value); }
     };
     #pragma endregion
 
 
     #pragma region Types
-    template <uint8_t Type>
+    template <uint8_t Type, std::size_t N = 0>
     struct parameter;
 
     // int_8t - 0
@@ -150,18 +164,22 @@ namespace mydak::args {
     struct parameter<0> : parameter_base_arithmetic<int8_t> {
         using parameter_base_arithmetic::parameter_base_arithmetic;
     };
+    parameter(int8_t min, int8_t max, const int8_t& value) -> parameter<0>;
 
-    // Basic string - 1
-    template<>
-    struct parameter<1> : parameter_base_string {
-        using parameter_base_string::parameter_base_string;
+    // Chars - 1
+    template <std::size_t N>
+    struct parameter<1, N> : parameter_base_chars<N> {
+        using parameter_base_chars<N>::parameter_base_chars;
     };
+    template <std::size_t N>
+    parameter(uint32_t min, uint32_t max, const std::array<unsigned char, N>& value)
+    -> parameter<1, N>;
 
     // IP - 2
     template<>
-    struct parameter<2> : parameter_base_string {
+    struct parameter<2> : parameter_base_string_view {
         explicit constexpr parameter(const std::string_view hostname)
-            : parameter_base_string(0, 1024, hostname) {}
+            : parameter_base_string_view(0, 1024, hostname) {}
 
         void try_set_val(std::string_view value) {
             if (is_an_ip(value)) {
@@ -176,6 +194,8 @@ namespace mydak::args {
             }
         }
     };
+    parameter(std::string_view hostname) -> parameter<2>;
+
     constexpr std::size_t parameters_variant_count = 3;
 
     #pragma endregion

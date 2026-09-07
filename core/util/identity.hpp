@@ -93,13 +93,13 @@ namespace mydak {
             logger::log_debug(std::format("Initialized credentials with public key {}", public_hex));
         }
 
-        void initialize(const std::string_view public_key_input, const std::string_view password) {
+        void initialize(const std::array<unsigned char, proto::E2E_KEYS_L>& public_key_input, const std::string_view password) {
             this->password_view = password;
 
 
             if (std::size(public_key_input) > 0) {
                 if (filename = std::format("{}.toml", public_key_input); std::filesystem::exists(filename)) {
-                    this->public_hex = public_key_input;
+                    this->public_hex = bin2hex(public_key_input);
                     load_keypair();
                     std::memcpy(&public_value, public_key.data(), sizeof(decltype(public_value)));
                     return;

@@ -168,6 +168,8 @@ asio::awaitable<void> mydak::client::send() {
 				// Preparing greetings packet
 				std::array prefix{proto::GREETINGS_PREFIX};
 				std::string message_compressed = brotli::compress(message_raw);
+				const auto encrypted_message = identity.encode_message(recipient, message_compressed);
+
 				const auto raw_size = static_cast<uint32_t>(message_compressed.size());
 				std::array<char, proto::MESSAGE_SIZE_L> size{};
 
@@ -183,9 +185,7 @@ asio::awaitable<void> mydak::client::send() {
 				co_await asio::async_write(*socket, asio::buffer(size), asio::use_awaitable);
 				co_await asio::async_write(*socket, asio::buffer(recipient), asio::use_awaitable);
 
-				std::array<unsigned char, crypto_secretbox_NONCEBYTES> nonce;
-				randombytes_buf(nonce.data(), nonce.size());
-				const auto encrypted_message = identity.encode_message(rec);
+
 
 				// MESSAGE
 				co_await asio::async_write(*socket, asio::buffer(message_compressed), asio::use_awaitable);

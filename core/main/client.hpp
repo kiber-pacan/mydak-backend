@@ -29,15 +29,15 @@ namespace mydak {
 				connect_tries,
 				wait_time,
 				wait_time_add,
-				public_key,
-				recipient,
+				public_key_string,
+				recipient_string,
 				local_server,
 				password
 			);
 
 			// KEYPAIR START
 
-
+			
 			identity.initialize(public_key, password);
 			// KEYPAIR END
 		}
@@ -74,16 +74,21 @@ namespace mydak {
 		std::int8_t connect_tries{};
 		std::int8_t wait_time{};
 		std::int8_t wait_time_add{};
-		std::array<char, proto::E2E_KEYS_L> recipient{};
+		std::string_view public_key_string{};
+		std::string_view recipient_string{};
 		std::int8_t local_server;
 
 		identity identity{};
-		std::string public_key{};
-		std::string password{};
+		std::array<unsigned char, proto::E2E_KEYS_L> public_key{};
+		std::array<unsigned char, proto::E2E_KEYS_L> recipient{};
+		std::string_view password{};
+
+
+
 
 		std::shared_ptr<send_channel> send_channel_ptr;
 		std::shared_ptr<send_channel> receive_channel_ptr;
-	
+
 		std::queue<std::string> messages{};
 	};
 }

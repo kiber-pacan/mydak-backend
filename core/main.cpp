@@ -77,7 +77,6 @@ int main(int argc, char* argv[]) {
 
 	mydak::coh::detached(client->initialize(0));
 
-	// TODO MAYBE REMOVE
 	io.run();
 	io.restart();
 

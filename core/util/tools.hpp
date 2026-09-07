@@ -78,15 +78,15 @@ namespace mydak::tools {
             return characters;
         }
 
-        constexpr bool operator == (std::string_view string_view) const {
+        constexpr bool operator == (const std::string_view string_view) const {
             return std::string_view{characters, N - 1} == string_view;
         }
 
-        constexpr bool operator < (std::string_view string_view) const {
+        constexpr bool operator < (const std::string_view string_view) const {
             return std::string_view{characters, N - 1} < string_view;
         }
 
-        constexpr bool operator > (std::string_view string_view) const {
+        constexpr bool operator > (const std::string_view string_view) const {
             return std::string_view{characters, N - 1} > string_view;
         }
 
