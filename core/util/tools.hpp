@@ -169,5 +169,14 @@ namespace mydak::tools {
             );
         } (std::make_index_sequence<sizeof...(names)>());
     }
+
+    struct static_string2 {
+        template <std::size_t N>
+        constexpr static_string2(const char (&str)[N]) {
+            std::integral_constant<std::size_t, N> size;
+        }
+        auto p;
+
+    };
 }
 #endif //MYDAK_SERVER_TOOLS_H

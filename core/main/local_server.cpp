@@ -42,7 +42,8 @@ asio::awaitable<void> mydak::server_connection::receive_loop() {
             std::span<char> message = message_span.subspan(65, message_size - 65);
 
 
-            client->recipient = std::string(public_key.data(), public_key.size());
+            memcpy(client->recipient.data(), public_key.data(), std::size(client->recipient));
+            client->recipient =
             client->messages.emplace(message.data(), message.size());
 
             const boost::system::error_code e;

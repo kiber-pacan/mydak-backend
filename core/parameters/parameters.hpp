@@ -52,6 +52,13 @@ namespace mydak::args {
     struct is_valid_raw_parameter<raw_parameter<Index, Option_String_Size, Args...>>
         : std::true_type {};
     // IS_VALID_PAIR END
+
+    template <std::size_t N>
+    constexpr auto to_array(const char (&str)[N]) {
+        std::array<unsigned char, N> arr{};
+        memcpy(arr.data(), str, N);
+        return arr;
+    }
     #pragma endregion
 
 
@@ -86,14 +93,14 @@ namespace mydak::args {
      *
      * @return A pair containing integral_constant index and the pair with the Option and the tuple of arguments.
      */
-    template <tools::static_string Option, std::size_t N, typename... T>
+    template <tools::static_string Option, std::size_t N, typename... Args>
     requires (N < parameters_variant_count)
-    constexpr auto make_parameter(T... args) {
+    constexpr auto make_parameter(Args... args) {
         return raw_parameter(std::integral_constant<std::size_t, N>{}, Option, std::make_tuple(args...));
     }
 
     template <typename... Args, std::size_t... Indices>
-    consteval auto make_from_indices(
+    constexpr auto make_from_indices(
         const std::tuple<Args...>& tuple,
         std::index_sequence<Indices...>
     ) {
@@ -101,10 +108,15 @@ namespace mydak::args {
     }
 
     template <typename... Args>
-    consteval auto make_from_tuple(
+    constexpr auto make_from_tuple(
         const std::tuple<Args...>& tuple
     ) {
         return make_from_indices(tuple, std::make_index_sequence<sizeof...(Args)>());
+    }
+
+    template <typename Raw_Paramater>
+    void test(Raw_Paramater p) {
+        make_from_tuple(p.args);
     }
 
     /**
@@ -150,8 +162,9 @@ namespace mydak::args {
         constexpr type_indices type_index{}; // e.g 0 | 1 | 2
 
         auto parameters = std::array<parameter_variants, sizeof...(raw_parameters)>{
-           make_from_tuple(raw_parameters.args)...
+           parameter_variants(make_from_tuple(raw_parameters.args))...
         };
+        parameter_variants(make_from_tuple(raw_parameters...[0].args));
         auto options = std::make_tuple(raw_parameters.option...);
 
 
@@ -159,14 +172,6 @@ namespace mydak::args {
         return std::make_tuple(parameters, options, type_index);
     }
     #pragma endregion
-
-
-    template <std::size_t N>
-    constexpr auto to_array(const char (&str)[N]) {
-        std::array<unsigned char, N> arr{};
-        memcpy(arr.data(), str, N);
-        return arr;
-    }
 
     #pragma region Setup
     static constexpr auto tuple_boy = make_parameters(
