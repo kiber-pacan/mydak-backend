@@ -136,17 +136,6 @@ namespace mydak::args {
     };
 
 
-    template <std::size_t N>
-    struct parameter_base_chars : parameter_base<std::array<unsigned char, N>, uint32_t>  {
-        using parameter_base = parameter_base<std::array<unsigned char, N>, uint32_t>;
-        using parameter_base::parameter_base;
-
-        void try_set_val(const std::array<unsigned char, N>& value) { this->try_set_val_internal(value); }
-    };
-    template <std::size_t N>
-    parameter_base_chars(uint32_t min, uint32_t max, const std::array<unsigned char, N>& value)
-    -> parameter_base_chars<N>;
-
 
     struct parameter_base_string_view : parameter_base<std::string_view, uint32_t>  {
         using parameter_base::parameter_base;
@@ -156,7 +145,7 @@ namespace mydak::args {
 
 
     #pragma region Types
-    template <uint8_t Type, std::size_t N = 0>
+    template <uint8_t Type>
     struct parameter;
 
     // int_8t - 0
@@ -164,16 +153,22 @@ namespace mydak::args {
     struct parameter<0> : parameter_base_arithmetic<int8_t> {
         using parameter_base_arithmetic::parameter_base_arithmetic;
     };
-    parameter(int8_t min, int8_t max, const int8_t& value) -> parameter<0>;
+    parameter(
+        int8_t min,
+        int8_t max,
+        const int8_t& value
+    ) -> parameter<0>;
 
     // Chars - 1
-    template <std::size_t N>
-    struct parameter<1, N> : parameter_base_chars<N> {
-        using parameter_base_chars<N>::parameter_base_chars;
+    template <>
+    struct parameter<1> : parameter_base_string_view {
+        using parameter_base_string_view::parameter_base_string_view;
     };
-    template <std::size_t N>
-    parameter(uint32_t min, uint32_t max, const std::array<unsigned char, N>& value)
-    -> parameter<1, N>;
+    parameter(
+        uint32_t min,
+        uint32_t max,
+        const std::string_view value
+    ) -> parameter<1>;
 
     // IP - 2
     template<>

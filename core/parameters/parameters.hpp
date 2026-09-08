@@ -52,13 +52,6 @@ namespace mydak::args {
     struct is_valid_raw_parameter<raw_parameter<Index, Option_String_Size, Args...>>
         : std::true_type {};
     // IS_VALID_PAIR END
-
-    template <std::size_t N>
-    constexpr auto to_array(const char (&str)[N]) {
-        std::array<unsigned char, N> arr{};
-        memcpy(arr.data(), str, N);
-        return arr;
-    }
     #pragma endregion
 
 
@@ -178,10 +171,10 @@ namespace mydak::args {
         make_parameter<"--connect_tries", details::TYPE_SMALL_NUMBER>(1, 64, 3),
         make_parameter<"--wait_time", details::TYPE_SMALL_NUMBER>(1, 64, 3),
         make_parameter<"--wait_time_add", details::TYPE_SMALL_NUMBER>(1, 64, 3),
-        make_parameter<"--public-key", details::TYPE_STRING>(proto::E2E_KEYS_L, proto::E2E_KEYS_L, to_array("")),
-        make_parameter<"--recipient", details::TYPE_STRING>(proto::E2E_KEYS_L, proto::E2E_KEYS_L, to_array("")),
+        make_parameter<"--public-key", details::TYPE_STRING>(proto::E2E_KEYS_HEX_L, proto::E2E_KEYS_HEX_L, ""),
+        make_parameter<"--recipient", details::TYPE_STRING>(proto::E2E_KEYS_HEX_L, proto::E2E_KEYS_HEX_L, ""),
         make_parameter<"--local-server", details::TYPE_SMALL_NUMBER>(0, 1, 0),
-        make_parameter<"--password", details::TYPE_STRING>(8, 64, to_array("password"))
+        make_parameter<"--password", details::TYPE_STRING>(8, 64, "password")
     );
 
     static constexpr std::size_t parameters_count = std::get<0>(tuple_boy).size();

@@ -9,18 +9,21 @@
 #include <string>
 #include <sstream>
 #include <array>
+#include <iostream>
+#include <iterator>
+#include <vector>
 
 #ifndef BROTLI_BUFFER_SIZE
 #define BROTLI_BUFFER_SIZE 1024
 #endif
 
-std::string mydak::brotli::compress(const std::string& data) {
+std::vector<unsigned char> mydak::brotli::compress(const std::string_view string) {
     auto instance = BrotliEncoderCreateInstance(nullptr, nullptr, nullptr);
     std::array<uint8_t, BROTLI_BUFFER_SIZE> buffer{};
     std::stringstream result;
 
-    size_t available_in = data.length(), available_out = buffer.size();
-    const auto* next_in = reinterpret_cast<const uint8_t*>(data.c_str());
+    size_t available_in = string.length(), available_out = buffer.size();
+    const auto* next_in = reinterpret_cast<const uint8_t*>(string.data());
     uint8_t* next_out = buffer.data();
 
     while (!(available_in == 0 && BrotliEncoderIsFinished(instance))) {
@@ -34,18 +37,20 @@ std::string mydak::brotli::compress(const std::string& data) {
         next_out = buffer.data();
     }
 
-
     BrotliEncoderDestroyInstance(instance);
-    return result.str();
+    return std::vector<unsigned char>(
+        std::istreambuf_iterator<char>(result),
+        std::istreambuf_iterator<char>()
+    );
 }
 
-std::string mydak::brotli::decompress(const std::string& data) {
+std::vector<unsigned char> mydak::brotli::decompress(const std::vector<unsigned char>& text) {
     auto instance = BrotliDecoderCreateInstance(nullptr, nullptr, nullptr);
     std::array<uint8_t, BROTLI_BUFFER_SIZE> buffer{};
     std::stringstream result;
 
-    size_t available_in = data.length(), available_out = buffer.size();
-    const auto* next_in = reinterpret_cast<const uint8_t*>(data.c_str());
+    size_t available_in = std::size(text), available_out = buffer.size();
+    const auto* next_in = text.data();
     uint8_t* next_out = buffer.data();
     BrotliDecoderResult oneshot_result{};
 
@@ -62,5 +67,8 @@ std::string mydak::brotli::decompress(const std::string& data) {
 
 
     BrotliDecoderDestroyInstance(instance);
-    return result.str();
+    return {
+        std::istreambuf_iterator<char>(result),
+        std::istreambuf_iterator<char>()
+    };
 }

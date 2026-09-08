@@ -23,7 +23,7 @@ asio::awaitable<void> mydak::server_connection::receive_loop() {
             if constexpr (std::endian::native == std::endian::big) message_size = std::byteswap(message_size);
 
             // [0x67][recipient][message]
-            std::vector<char> message_raw{};
+            std::vector<unsigned char> message_raw{};
             message_raw.resize(message_size);
             co_await asio::async_read(*socket, asio::buffer(message_raw, message_size), asio::use_awaitable);
 
@@ -36,15 +36,19 @@ asio::awaitable<void> mydak::server_connection::receive_loop() {
                 continue;
             }
 
-            std::span<char> message_span{message_raw};
+            memcpy(
+                client->recipient.data(),
+                message_raw.data() + proto::GREETINGS_PREFIX_L,
+                proto::E2E_KEYS_RAW_L
+            );
 
-            std::span<char> public_key = message_span.subspan(1, 64);
-            std::span<char> message = message_span.subspan(65, message_size - 65);
+            client->recipient_hex = tools::bin2hex_string(client->recipient);
 
-
-            memcpy(client->recipient.data(), public_key.data(), std::size(client->recipient));
-            client->recipient =
-            client->messages.emplace(message.data(), message.size());
+            constexpr std::size_t message_start = proto::GREETINGS_PREFIX_L + proto::E2E_KEYS_RAW_L;
+            client->messages.emplace(
+                reinterpret_cast<const char*>(message_raw.data()) + message_start,
+                std::size(message_raw) - message_start
+            );
 
             const boost::system::error_code e;
             co_await client->send_channel_ptr->async_send(e, asio::use_awaitable);

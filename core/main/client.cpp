@@ -63,30 +63,37 @@ asio::awaitable<void> mydak::client::initialize(const int current_try) {
 asio::awaitable<void> mydak::client::receive() const {
 	try {
 		for (;;)  {
-			// [key][size]
-			// normally 64 + 4
-			std::array<char, proto::E2E_KEYS_L + proto::MESSAGE_SIZE_L> key_and_size{};
-			co_await asio::async_read(*socket, asio::buffer(key_and_size, key_and_size.size()), asio::use_awaitable);
+			// [message size][public key]
+			// normally 4 + 32
+			std::array<char, proto::E2E_KEYS_RAW_L + proto::MESSAGE_SIZE_L> greetings{};
+			co_await asio::async_read(*socket, asio::buffer(greetings, greetings.size()), asio::use_awaitable);
 
 
 			uint32_t message_size;
 			std::memcpy(
 				&message_size,
-				key_and_size.data() + proto::E2E_KEYS_L,
+				greetings.data(),
 				proto::MESSAGE_SIZE_L
 			);
 			if (message_size < 1) continue;
 
-			// Getting first 64 chars aka public key
-			std::string key(std::span(key_and_size).subspan(0, proto::E2E_KEYS_L).data(), proto::E2E_KEYS_L);
+			// Getting first 32 chars aka public key
+			std::array<unsigned char, proto::E2E_KEYS_RAW_L> sender_public_key{};
+			memcpy(
+				sender_public_key.data(),
+				greetings.data() + proto::MESSAGE_SIZE_L,
+				std::size(sender_public_key)
+			);
 
-			std::string raw_message{}; raw_message.resize(message_size);
+			std::vector<unsigned char> raw_message{};
+			raw_message.resize(message_size);
 
-			// Getting brotli encoded string
+			// Receiving message
 			co_await asio::async_read(*socket, asio::buffer(raw_message.data(), raw_message.size()), asio::use_awaitable);
-			std::string message = brotli::decompress(raw_message);
+			// Decoding -> decompressing
+			std::vector<unsigned char> message = brotli::decompress(id.decode_message(sender_public_key, raw_message));
 
-			#pragma region gap shenanigans
+			#pragma region gap shenanigansq
 			winsize size{};
 			ioctl(STDOUT_FILENO, TIOCGWINSZ, &size);
 
@@ -99,9 +106,9 @@ asio::awaitable<void> mydak::client::receive() const {
 			}
 			#pragma endregion
 
+			// Printing message with name based in public key hash
 			std::string formatted = std::format("{}{}", gap, message);
-			
-			logger::log(std::format("{} : {}", namer::get_name(identity.public_value), formatted));
+			logger::log(std::format("{} : {}", namer::get_name(id.public_value), formatted));
 		}
 	}
 	catch (const boost::system::system_error& e) {
@@ -114,25 +121,15 @@ asio::awaitable<void> mydak::client::receive() const {
 asio::awaitable<void> mydak::client::send() {
 	try {
 		// Getting new public key if public_key is not the right size (Probably empty!)
-		if (std::size(identity.public_hex) != proto::E2E_KEYS_L) {
-			std::array<char, proto::E2E_KEYS_L> public_key_array{};
+		if (std::size(id.public_hex) != proto::E2E_KEYS_HEX_L) {
+			constexpr size_t bin_len = proto::E2E_KEYS_RAW_L;
 
-			constexpr size_t bin_len = proto::E2E_KEYS_L / 2;
-			constexpr size_t hex_len = proto::E2E_KEYS_L + 1;
+			std::array<char, proto::E2E_KEYS_HEX_L> hex{};
+			randombytes_buf(public_key.data(), bin_len);
 
-			unsigned char bin[bin_len];
-			std::array<char, hex_len> hex{};
+			tools::bin2hex(public_key, hex.data(), std::size(hex));
 
-			randombytes_buf(bin, bin_len);
-
-			if (sodium_bin2hex(hex.data(), hex_len, bin, bin_len) == nullptr) {
-				throw std::runtime_error("Failed to convert bytes to hex string");
-			}
-
-			std::ranges::copy_n(hex.begin(), proto::E2E_KEYS_L, public_key_array.begin());
-			public_key = std::string(public_key_array.data(), public_key_array.size());
-
-			logger::log(public_key);
+			logger::log(std::format("Generated key: {}", std::string_view(hex.data(), std::size(hex) - 1))); // THROWING OUT NULL TERMINATOR
 		}
 
 		// Sending our public key so we can get registered on the server
@@ -145,11 +142,18 @@ asio::awaitable<void> mydak::client::send() {
 			for (; not messages.empty(); messages.pop()) {
 				std::string& message_raw = messages.front();
 
-				// Basic degenerate command thingy
+				#pragma region Command parser
 				if (message_raw[0] == '/') {
 					if (message_raw[1] == 'r' && message_raw[2] == ' ') {
-						std::string_view recipient_view = std::string_view(message_raw).substr(3, message_raw.size() - 3);
-						recipient = std::string(recipient_view);
+						if (sodium_hex2bin(
+							recipient.data(),
+							std::size(recipient),
+							message_raw.data() + 3,
+							std::size(message_raw) - 3, nullptr, nullptr, nullptr // length of {/r }
+						) != 0) {
+							logger::exit_func("Failed to convert hex to binary");
+						}
+						recipient_hex = std::string(message_raw.data() + 3, std::size(message_raw) - 3);
 
 						continue;
 					}
@@ -159,36 +163,47 @@ asio::awaitable<void> mydak::client::send() {
 				}
 
 				// SET YOUR FUCKING RECIPIENT YOU STUPID WHORE
-				if (recipient.empty()) {
+				if (recipient_hex.empty()) {
 					logger::log_error("No recipient provided. /r <RECIPIENT>");
 					continue;
 				}
-				
-				
+				#pragma endregion
+
+
 				// Preparing greetings packet
 				std::array prefix{proto::GREETINGS_PREFIX};
-				std::string message_compressed = brotli::compress(message_raw);
-				const auto encrypted_message = identity.encode_message(recipient, message_compressed);
 
-				const auto raw_size = static_cast<uint32_t>(message_compressed.size());
+				// Compress and encrypt message
+				// Compressing -> encoding
+				const auto processed_message = id.encode_message(recipient, brotli::compress(message_raw));
+
+
+				// Getting encrypted message size
+				#pragma region Message size
+				const auto encrypted_size = static_cast<uint32_t>(std::size(processed_message));
 				std::array<char, proto::MESSAGE_SIZE_L> size{};
 
+				// We send message in little-endian,
+				// so on the server side we should use byte swap if server using big-endian
 				if constexpr (std::endian::native == std::endian::big) {
-					size = std::bit_cast<std::array<char, proto::MESSAGE_SIZE_L>>(std::byteswap(raw_size));
+					size = std::bit_cast<std::array<char, proto::MESSAGE_SIZE_L>>(std::byteswap(encrypted_size));
 				} else {
-					size = std::bit_cast<std::array<char, proto::MESSAGE_SIZE_L>>(raw_size);
+					size = std::bit_cast<std::array<char, proto::MESSAGE_SIZE_L>>(encrypted_size);
 				}
+				#pragma endregion
 
-
+				// sending [0x67][message size][recipient][message] packet
+				#pragma region Sending
 				// GREETINGS
 				co_await asio::async_write(*socket, asio::buffer(prefix), asio::use_awaitable);
 				co_await asio::async_write(*socket, asio::buffer(size), asio::use_awaitable);
 				co_await asio::async_write(*socket, asio::buffer(recipient), asio::use_awaitable);
 
-
-
 				// MESSAGE
-				co_await asio::async_write(*socket, asio::buffer(message_compressed), asio::use_awaitable);
+				co_await asio::async_write(*socket, asio::buffer(processed_message), asio::use_awaitable);
+				#pragma endregion
+
+				std::cout << "SENT" << std::endl;
 			}
 		}
 	}

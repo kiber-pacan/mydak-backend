@@ -6,20 +6,17 @@
 #define MYDAK_BACKEND_BROTLI_H
 
 
-#include <brotli/encode.h>
-#include <brotli/decode.h>
 #include <string>
-#include <sstream>
-#include <array>
+#include <vector>
 
 #ifndef BROTLI_BUFFER_SIZE
 #define BROTLI_BUFFER_SIZE 1024
 #endif
 
 namespace mydak::brotli {
-    std::string compress(const std::string& data);
+    std::vector<unsigned char> compress(const std::string_view string);
 
-    std::string decompress(const std::string& data);
+    std::vector<unsigned char> decompress(const std::vector<unsigned char>& text);
 }
 
 

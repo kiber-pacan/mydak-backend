@@ -69,7 +69,6 @@ int main(int argc, char* argv[]) {
 	if (sodium_init() != 0)
 		throw std::runtime_error("Failed to init sodium!");
 
-
 	auto& io = mydak::coh::io();
 	auto client = std::make_shared<mydak::client>(io, "127.0.0.1", "8888", argc, argv);
 
