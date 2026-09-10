@@ -36,9 +36,16 @@ namespace mydak {
 			);
 
 
+			// TODO REWORK THIS PIECE OF SHIT
 			// KEYPAIR START
 			id.initialize(public_key_hex, password);
-			public_key = id.public_key;
+			public_key = id.public_key; // getting binary key from identity
+			auto bin = tools::hex2bin(recipient_hex);
+			memcpy(
+				recipient.data(),
+				bin.data(),
+				std::size(recipient)
+			);
 			// KEYPAIR END
 		}
 
@@ -59,7 +66,7 @@ namespace mydak {
 	
 		asio::awaitable<void> initialize(int current_try);
  
-		asio::awaitable<void> receive() const;
+		asio::awaitable<void> receive();
 
 		asio::awaitable<void> send();
 

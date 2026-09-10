@@ -98,6 +98,7 @@ namespace mydak {
         }
         #pragma endregion
 
+
         #pragma region save-load
         void save_keypair() {
             try {
@@ -146,7 +147,7 @@ namespace mydak {
         void load_keypair() {
             try {
                 toml::table keypair_file = toml::parse_file(filename);
-
+                std::cout <<"load" << std::endl;
                 try_load_value(salt, "salt");
                 try_load_value(salt, "salt");
 
@@ -182,6 +183,10 @@ namespace mydak {
                     password_hash.data()
                 ) != 0) throw std::runtime_error("Failed to encode private key!");
 
+                for (std::size_t i = 0; i < std::size(private_key); i++) {
+                    std::cout << i << " " << private_key[i] << std::endl;
+                }
+
                 logger::log_debug("Loaded credentials from file");
             } catch (const std::exception& e) {
                 logger::exit_func(e.what());
@@ -190,37 +195,47 @@ namespace mydak {
 
         #pragma endregion
 
+
         #pragma region secret
         [[nodiscard]] std::array<unsigned char, proto::E2E_KEYS_RAW_L> get_shared_secret(
-        std::array<unsigned char, proto::E2E_KEYS_RAW_L> &recipient_key
-        ) const {
-            // ReSharper disable once CppTooWideScopeInitStatement
-            std::cout << "a" << std::endl;
+            std::array<unsigned char, proto::E2E_KEYS_RAW_L> &recipient_key
+        ) {
+            std::cout << "secret" << std::endl;
+            for (std::size_t i = 0; i < std::size(recipient_key); i++) {
+                std::cout << i << " " << recipient_key[i] << std::endl;
+            }
+            for (std::size_t i = 0; i < std::size(private_key); i++) {
+                std::cout << i << " " << private_key[i] << std::endl;
+            }
             const auto it = detail.shared_secrets_cache.find(recipient_key);
             if (it != detail.shared_secrets_cache.end()) return it->second;
-            std::cout << "b" << std::endl;
+
             std::array<unsigned char, proto::E2E_KEYS_RAW_L> shared_secret; // NOLINT(*-pro-type-member-init)
-            if (crypto_box_beforenm(shared_secret.data(), recipient_key.data(), public_key.data()) != 0)
-                throw std::runtime_error("Failed to encode create shared secret!");
+            if (crypto_box_beforenm(
+                shared_secret.data(),
+                recipient_key.data(),
+                private_key.data()
+            ) != 0) throw std::runtime_error("Failed to create shared secret!");
+
             detail.shared_secrets_cache[recipient_key] = shared_secret;
-            std::cout << "c" << std::endl;
+
             return shared_secret;
         }
         #pragma endregion
 
+
         #pragma region messages
         [[nodiscard]] auto encode_message(
             std::array<unsigned char, proto::E2E_KEYS_RAW_L> &recipient_key,
-            const std::vector<unsigned char>& message
+            std::vector<unsigned char> message
         ) {
-            std::cout << "1" << std::endl;
             std::vector<unsigned char> final_message;
             // [Nonce][Message][MAC]
             final_message.resize(crypto_box_NONCEBYTES + crypto_box_MACBYTES + std::size(message));
 
             // Generating nonce in final_message vector
             randombytes_buf(final_message.data(), crypto_box_NONCEBYTES);
-            std::cout << "2" << std::endl;
+
             if (crypto_box_easy_afternm(
                 final_message.data() + crypto_box_NONCEBYTES, // Setting pointer after nonce
                 message.data(), // Pointer to the raw message
@@ -229,17 +244,21 @@ namespace mydak {
                 get_shared_secret(recipient_key).data() // Shared secret
             ) != 0) throw std::runtime_error("Failed to encode message!");
 
-            std::cout << "3" << std::endl;
-
             return final_message;
         }
 
         [[nodiscard]] auto decode_message(
-        std::array<unsigned char, proto::E2E_KEYS_RAW_L> &recipient_key,
-            const std::vector<unsigned char>& encrypted_message // [Nonce][Message][MAC]
-        ) const {
+            std::array<unsigned char, proto::E2E_KEYS_RAW_L> &recipient_key,
+            std::vector<unsigned char>& encrypted_message // [Nonce][Message][MAC]
+        ) {
+            std::cout << "got decode" << std::endl;
+            for (std::size_t i = 0; i < std::size(encrypted_message); i++) {
+                std::cout << i << " " << encrypted_message[i] << std::endl;
+            }
+
             std::vector<unsigned char> decrypted_message;
             decrypted_message.resize(std::size(encrypted_message) - crypto_box_NONCEBYTES - crypto_box_MACBYTES);
+            std::cout << "1" << std::endl;
 
             if (crypto_box_open_easy_afternm(
                 decrypted_message.data(),
@@ -248,6 +267,7 @@ namespace mydak {
                 encrypted_message.data(),
                 get_shared_secret(recipient_key).data()
             ) != 0) throw std::runtime_error("Failed to decode message!");
+            std::cout << "2" << std::endl;
 
             return decrypted_message;
         }

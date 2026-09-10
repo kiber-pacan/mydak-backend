@@ -240,6 +240,21 @@ namespace mydak::tools {
         return bin;
     }
 
+    static std::vector<unsigned char> hex2bin(const std::string_view hex) {
+        std::vector<unsigned char> bin; // NOLINT(*-pro-type-member-init)
+        bin.resize(std::size(hex) / 2);
+        if (sodium_hex2bin(
+            bin.data(),
+            std::size(bin),
+            hex.data(),
+            std::size(hex), nullptr, nullptr, nullptr
+        ) != 0) {
+            logger::exit_func("Failed to convert hex to binary");
+        }
+
+        return bin;
+    }
+
 
     static void hex2bin(const std::string_view hex, unsigned char *dest, const size_t size) {
         if (sodium_hex2bin(

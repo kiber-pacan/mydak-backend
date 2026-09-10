@@ -17,7 +17,7 @@
 #define BROTLI_BUFFER_SIZE 1024
 #endif
 
-std::vector<unsigned char> mydak::brotli::compress(const std::string_view string) {
+std::vector<unsigned char> mydak::brotli::compress(std::string_view string) {
     auto instance = BrotliEncoderCreateInstance(nullptr, nullptr, nullptr);
     std::array<uint8_t, BROTLI_BUFFER_SIZE> buffer{};
     std::stringstream result;
@@ -45,6 +45,7 @@ std::vector<unsigned char> mydak::brotli::compress(const std::string_view string
 }
 
 std::vector<unsigned char> mydak::brotli::decompress(const std::vector<unsigned char>& text) {
+    std::cout << "decompressing text" << std::endl;
     auto instance = BrotliDecoderCreateInstance(nullptr, nullptr, nullptr);
     std::array<uint8_t, BROTLI_BUFFER_SIZE> buffer{};
     std::stringstream result;

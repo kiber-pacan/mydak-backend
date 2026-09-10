@@ -60,7 +60,7 @@ asio::awaitable<void> mydak::client::initialize(const int current_try) {
 }
 
 // Receive messages from the server loop
-asio::awaitable<void> mydak::client::receive() const {
+asio::awaitable<void> mydak::client::receive() {
 	try {
 		for (;;)  {
 			// [message size][public key]
@@ -68,6 +68,7 @@ asio::awaitable<void> mydak::client::receive() const {
 			std::array<char, proto::E2E_KEYS_RAW_L + proto::MESSAGE_SIZE_L> greetings{};
 			co_await asio::async_read(*socket, asio::buffer(greetings, greetings.size()), asio::use_awaitable);
 
+			std::cout << "READ" << std::endl;
 
 			uint32_t message_size;
 			std::memcpy(
@@ -75,6 +76,8 @@ asio::awaitable<void> mydak::client::receive() const {
 				greetings.data(),
 				proto::MESSAGE_SIZE_L
 			);
+			std::cout << message_size << std::endl;
+
 			if (message_size < 1) continue;
 
 			// Getting first 32 chars aka public key
@@ -84,16 +87,27 @@ asio::awaitable<void> mydak::client::receive() const {
 				greetings.data() + proto::MESSAGE_SIZE_L,
 				std::size(sender_public_key)
 			);
+			std::cout << "got sender_public_key" << std::endl;
+			for (std::size_t i = 0; i < std::size(sender_public_key); i++) {
+				std::cout << i << " " << sender_public_key[i] << std::endl;
+			}
 
 			std::vector<unsigned char> raw_message{};
 			raw_message.resize(message_size);
 
 			// Receiving message
 			co_await asio::async_read(*socket, asio::buffer(raw_message.data(), raw_message.size()), asio::use_awaitable);
+			std::cout << "got message" << std::endl;
+
 			// Decoding -> decompressing
 			std::vector<unsigned char> message = brotli::decompress(id.decode_message(sender_public_key, raw_message));
 
-			#pragma region gap shenanigansq
+			std::cout << "decompressed messgtw4" << std::endl;
+
+
+
+
+			#pragma region gap shenanigans
 			winsize size{};
 			ioctl(STDOUT_FILENO, TIOCGWINSZ, &size);
 
@@ -169,7 +183,6 @@ asio::awaitable<void> mydak::client::send() {
 				}
 				#pragma endregion
 
-
 				// Preparing greetings packet
 				std::array prefix{proto::GREETINGS_PREFIX};
 
@@ -202,8 +215,6 @@ asio::awaitable<void> mydak::client::send() {
 				// MESSAGE
 				co_await asio::async_write(*socket, asio::buffer(processed_message), asio::use_awaitable);
 				#pragma endregion
-
-				std::cout << "SENT" << std::endl;
 			}
 		}
 	}
