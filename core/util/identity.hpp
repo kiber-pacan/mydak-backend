@@ -24,6 +24,7 @@ namespace mydak {
     };
     struct identity { // NOLINT(*-pro-type-member-init)
         #pragma region variables
+        // TODO I THINK MOST OF IT IS REDUNDANT TRASH, REMOVE IT
         std::array<unsigned char, proto::E2E_KEYS_RAW_L> public_key{};
         std::array<unsigned char, proto::E2E_KEYS_RAW_L> private_key{};
 
