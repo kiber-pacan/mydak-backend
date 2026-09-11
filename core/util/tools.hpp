@@ -190,7 +190,7 @@ namespace mydak::tools {
         if (sodium_bin2hex(
             hex.data(),
             std::size(hex),
-            reinterpret_cast<const unsigned char*>(bin.data()), std::size(bin)
+            bin.data(), std::size(bin)
         ) == nullptr) {
             logger::exit_func("Failed to convert binary to hex");
         }
@@ -199,12 +199,12 @@ namespace mydak::tools {
     }
 
     template <std::size_t N>
-    static std::string bin2hex_string(const std::array<unsigned char, N>& bin) {
+    static std::string bin2hex_string(std::array<unsigned char, N>& bin) {
         std::array<char, N * 2 + 1> hex; // NOLINT(*-pro-type-member-init)
         if (sodium_bin2hex(
             hex.data(),
             std::size(hex),
-            reinterpret_cast<const unsigned char*>(bin.data()), std::size(bin)
+            bin.data(), std::size(bin)
         ) == nullptr) {
             logger::exit_func("Failed to convert binary to hex");
         }
@@ -217,7 +217,46 @@ namespace mydak::tools {
         if (sodium_bin2hex(
             dest,
             size,
-            reinterpret_cast<const unsigned char*>(bin.data()), std::size(bin)
+            bin.data(), std::size(bin)
+        ) == nullptr) {
+            logger::exit_func("Failed to convert binary to hex");
+        }
+    }
+
+    static std::vector<char> bin2hex(const std::vector<unsigned char>& bin) {
+        std::vector<char> hex;
+        hex.resize(std::size(bin) * 2 + 1);
+        if (sodium_bin2hex(
+            hex.data(),
+            std::size(hex),
+            bin.data(), std::size(bin)
+        ) == nullptr) {
+            logger::exit_func("Failed to convert binary to hex");
+        }
+
+        return hex;
+    }
+
+    static std::string bin2hex_string(const std::vector<unsigned char>& bin) {
+        std::vector<char> hex;
+        hex.resize(std::size(bin) * 2 + 1);
+
+        if (sodium_bin2hex(
+            hex.data(),
+            std::size(hex),
+            bin.data(), std::size(bin)
+        ) == nullptr) {
+            logger::exit_func("Failed to convert binary to hex");
+        }
+
+        return {hex.data(), std::size(hex) - 1};
+    }
+
+    static void bin2hex(const std::vector<unsigned char>& bin, char* dest, const std::size_t size) {
+        if (sodium_bin2hex(
+            dest,
+            size,
+            bin.data(), std::size(bin)
         ) == nullptr) {
             logger::exit_func("Failed to convert binary to hex");
         }
