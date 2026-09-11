@@ -113,7 +113,7 @@ asio::awaitable<void> mydak::client::receive() {
 
 			// Printing message with name based in public key hash
 			std::string formatted = std::format("{}{}", gap, std::string_view(reinterpret_cast<const char*>(message.data()), std::size(message)));
-			logger::log(std::format("{} : {}", namer::get_name(id.public_value), formatted));
+			logger::log(std::format("{} : {}", namer::get_name(id.public_key_value), formatted));
 		}
 	} catch (const std::exception& e) {
 		logger::log_func_error(e.what());

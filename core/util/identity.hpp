@@ -22,24 +22,50 @@ namespace mydak {
         // public key - shared secret
         mutable std::map<std::array<unsigned char, proto::E2E_KEYS_RAW_L>, std::array<unsigned char, proto::E2E_KEYS_RAW_L>> shared_secrets_cache;
     };
-    struct identity {
+    struct identity { // NOLINT(*-pro-type-member-init)
         #pragma region variables
         std::array<unsigned char, proto::E2E_KEYS_RAW_L> public_key{};
         std::array<unsigned char, proto::E2E_KEYS_RAW_L> private_key{};
-        std::uint16_t public_value;
 
         std::array<unsigned char, crypto_pwhash_SALTBYTES> salt;
-        std::array<unsigned char, 32> password_hash;
-
         std::array<unsigned char, crypto_secretbox_NONCEBYTES> nonce;
+
+        std::array<unsigned char, 32> password_hash;
         std::array<unsigned char, 48> private_key_encoded;
 
         std::string_view login_view;
         std::string_view password_view;
         std::string filename;
 
+        std::uint16_t public_key_value;
+
         detail detail;
+
+        static constexpr std::uint32_t OPSLIMIT = 2;
+        static constexpr std::uint32_t MEMLIMIT = 134217728;
         #pragma endregion
+
+        identity() = default;
+
+        identity(const std::string_view login, const std::string_view password) { // NOLINT(*-pro-type-member-init)
+            this->password_view = password;
+            this->login_view = login;
+
+            // If login provided
+            if (std::size(login_view) > 0) {
+                // And file for that login exists
+                if (filename = std::format("{}.toml", std::string_view(login_view.data(), std::size(login_view))); std::filesystem::exists(filename)) {
+                    // Read credentials
+                    load_keypair();
+                    std::memcpy(&public_key_value, public_key.data(), sizeof(decltype(public_key_value)));
+                    return;
+                }
+            }
+
+            // Generate fresh credentials
+            initialize_credentials();
+            save_keypair();
+        }
 
 
         #pragma region initialization
@@ -49,21 +75,23 @@ namespace mydak {
 
             logger::log(std::format("Your public key is: {}", tools::bin2hex_string(public_key)));
 
-
+            // Generate salt and nonce
             randombytes_buf(salt.data(), std::size(salt));
             randombytes_buf(nonce.data(), std::size(nonce));
 
+            // Generate password hash
             if (crypto_pwhash(
                 password_hash.data(),
                 std::size(password_hash),
                 password_view.data(),
                 password_view.size(),
                 salt.data(),
-                2,
-                134217728,
+                OPSLIMIT,
+                MEMLIMIT,
                 crypto_pwhash_ALG_DEFAULT
             ) != 0) throw std::runtime_error("Failed to create password hash!");
 
+            // Encode private key with newly generated password hash
             if (crypto_secretbox_easy(
                 private_key_encoded.data(),
                 private_key.data(),
@@ -72,25 +100,10 @@ namespace mydak {
                 password_hash.data()
             ) != 0) throw std::runtime_error("Failed to encode private key!");
 
-            std::memcpy(&public_value, public_key.data(), sizeof(decltype(public_value)));
+            // Get public_key_value from public key
+            std::memcpy(&public_key_value, public_key.data(), sizeof(decltype(public_key_value)));
 
             filename = std::format("{}.toml", login_view);
-        }
-
-        void initialize(const std::string_view login, const std::string_view password) {
-            this->password_view = password;
-            this->login_view = login;
-
-            if (std::size(login_view) > 0) {
-                if (filename = std::format("{}.toml", std::string_view(login_view.data(), std::size(login_view))); std::filesystem::exists(filename)) {
-                    load_keypair();
-                    std::memcpy(&public_value, public_key.data(), sizeof(decltype(public_value)));
-                    return;
-                }
-            }
-
-            initialize_credentials();
-            save_keypair();
         }
         #pragma endregion
 
@@ -102,12 +115,13 @@ namespace mydak {
 
                 keypair_file.insert_or_assign("salt", tools::bin2hex_string(salt));
                 keypair_file.insert_or_assign("nonce", tools::bin2hex_string(nonce));
-                keypair_file.insert_or_assign("opslimit", 2);
-                keypair_file.insert_or_assign("memlimit", 134217728);
+                keypair_file.insert_or_assign("opslimit", OPSLIMIT);
+                keypair_file.insert_or_assign("memlimit", MEMLIMIT);
                 keypair_file.insert_or_assign("password_hash", tools::bin2hex_string(password_hash));
 
                 keypair_file.insert_or_assign("private_key_encoded", tools::bin2hex_string(private_key_encoded));
 
+                // Save file to the system
                 std::ofstream file;
                 file.open(filename);
                 file << keypair_file;
@@ -141,6 +155,7 @@ namespace mydak {
 
         void load_keypair() {
             try {
+                // Load data from file
                 toml::table keypair_file = toml::parse_file(filename);
                 try_load_value(salt, "salt");
 
@@ -154,6 +169,7 @@ namespace mydak {
                 try_load_value(private_key_encoded, "private_key_encoded");
 
 
+                // Generate new hash from given password and compare that hash with the file one
                 std::array<unsigned char, 32> password_hash_copy; // NOLINT(*-pro-type-member-init)
                 if (crypto_pwhash(
                     password_hash_copy.data(),
@@ -168,6 +184,7 @@ namespace mydak {
                 if (password_hash != password_hash_copy) throw std::runtime_error("Failed to get the same password hash!");
 
 
+                // Decode private key
                 if (crypto_secretbox_open_easy(
                     private_key.data(),
                     private_key_encoded.data(),
@@ -176,14 +193,13 @@ namespace mydak {
                     password_hash.data()
                 ) != 0) throw std::runtime_error("Failed to decode private key!");
 
+                // Generate public key from private key
                 crypto_scalarmult_base(
                     public_key.data(),
                     private_key.data()
                 );
 
                 logger::log(std::format("Your public key is: {}", tools::bin2hex_string(public_key)));
-
-
             } catch (const std::exception& e) {
                 logger::exit_func(e.what());
             }
@@ -194,11 +210,13 @@ namespace mydak {
 
         #pragma region secret
         [[nodiscard]] std::array<unsigned char, proto::E2E_KEYS_RAW_L> get_shared_secret(
-            std::array<unsigned char, proto::E2E_KEYS_RAW_L> &recipient_key
-        ) {
+            const std::array<unsigned char, proto::E2E_KEYS_RAW_L> &recipient_key
+        ) const {
+            // Try to find shared secret in cache
             const auto it = detail.shared_secrets_cache.find(recipient_key);
             if (it != detail.shared_secrets_cache.end()) return it->second;
 
+            // Generate shared secret
             std::array<unsigned char, proto::E2E_KEYS_RAW_L> shared_secret; // NOLINT(*-pro-type-member-init)
             if (crypto_box_beforenm(
                 shared_secret.data(),
@@ -206,6 +224,7 @@ namespace mydak {
                 private_key.data()
             ) != 0) throw std::runtime_error("Failed to create shared secret!");
 
+            // Add it to cache
             detail.shared_secrets_cache[recipient_key] = shared_secret;
 
             return shared_secret;
@@ -215,9 +234,9 @@ namespace mydak {
 
         #pragma region messages
         [[nodiscard]] auto encode_message(
-            std::array<unsigned char, proto::E2E_KEYS_RAW_L> &recipient_key,
+            const std::array<unsigned char, proto::E2E_KEYS_RAW_L> &recipient_key,
             const std::vector<unsigned char> &message
-        ) {
+        ) const {
             std::vector<unsigned char> encrypted_message;
             // [Nonce][MAC][Message]
             encrypted_message.resize(crypto_box_NONCEBYTES + std::size(message) + crypto_box_MACBYTES);
@@ -237,10 +256,10 @@ namespace mydak {
         }
 
         [[nodiscard]] auto decode_message(
-            std::array<unsigned char, proto::E2E_KEYS_RAW_L> &recipient_key,
+            const std::array<unsigned char, proto::E2E_KEYS_RAW_L> &recipient_key,
             // [Nonce][MAC][Message]
             const std::vector<unsigned char>& encrypted_message
-        ) {
+        ) const {
             std::vector<unsigned char> decoded_message;
 
             decoded_message.resize(std::size(encrypted_message) - crypto_box_NONCEBYTES - crypto_box_MACBYTES);

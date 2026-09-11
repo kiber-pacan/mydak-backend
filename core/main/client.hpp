@@ -38,7 +38,7 @@ namespace mydak {
 
 			// TODO REWORK THIS PIECE OF SHIT
 			// KEYPAIR START
-			id.initialize(login, password);
+			id = identity(login, password);
 			if (std::size(recipient_hex) > 0) {
 				auto bin = tools::hex2bin(recipient_hex);
 				memcpy(
@@ -86,7 +86,7 @@ namespace mydak {
 		std::string recipient_hex{};
 		std::int8_t local_server;
 
-		identity id{};
+		identity id;
 		std::array<unsigned char, proto::E2E_KEYS_RAW_L> recipient{};
 		std::string login{};
 		std::string_view password{};
