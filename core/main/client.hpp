@@ -29,23 +29,24 @@ namespace mydak {
 				connect_tries,
 				wait_time,
 				wait_time_add,
-				public_key_hex,
 				recipient_hex,
 				local_server,
+				login,
 				password
 			);
 
 
 			// TODO REWORK THIS PIECE OF SHIT
 			// KEYPAIR START
-			id.initialize(public_key_hex, password);
-			public_key = id.public_key; // getting binary key from identity
-			auto bin = tools::hex2bin(recipient_hex);
-			memcpy(
-				recipient.data(),
-				bin.data(),
-				std::size(recipient)
-			);
+			id.initialize(login, password);
+			if (std::size(recipient_hex) > 0) {
+				auto bin = tools::hex2bin(recipient_hex);
+				memcpy(
+					recipient.data(),
+					bin.data(),
+					std::size(recipient)
+				);
+			}
 			// KEYPAIR END
 		}
 
@@ -81,14 +82,13 @@ namespace mydak {
 		std::int8_t connect_tries{};
 		std::int8_t wait_time{};
 		std::int8_t wait_time_add{};
-		std::string public_key_hex{};
+
 		std::string recipient_hex{};
 		std::int8_t local_server;
 
 		identity id{};
-		std::array<unsigned char, proto::E2E_KEYS_RAW_L> public_key;
-		std::array<unsigned char, proto::E2E_KEYS_RAW_L> recipient;
-
+		std::array<unsigned char, proto::E2E_KEYS_RAW_L> recipient{};
+		std::string login{};
 		std::string_view password{};
 
 

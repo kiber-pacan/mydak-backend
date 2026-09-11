@@ -68,8 +68,6 @@ asio::awaitable<void> mydak::client::receive() {
 			std::array<char, proto::E2E_KEYS_RAW_L + proto::MESSAGE_SIZE_L> greetings{};
 			co_await asio::async_read(*socket, asio::buffer(greetings, greetings.size()), asio::use_awaitable);
 
-			std::cout << "READ" << std::endl;
-
 			uint32_t message_size;
 			std::memcpy(
 				&message_size,
@@ -96,7 +94,6 @@ asio::awaitable<void> mydak::client::receive() {
 			co_await asio::async_read(*socket, asio::buffer(raw_message.data(), raw_message.size()), asio::use_awaitable);
 
 			// Decoding -> decompressing
-			std::cout << "got message" << std::endl;
 			std::vector<unsigned char> message = brotli::decompress(id.decode_message(sender_public_key, raw_message));
 			//std::vector<unsigned char> message = brotli::decompress(raw_message);
 
@@ -115,12 +112,12 @@ asio::awaitable<void> mydak::client::receive() {
 			#pragma endregion
 
 			// Printing message with name based in public key hash
-			std::string formatted = std::format("{}{}", gap, message);
+			std::string formatted = std::format("{}{}", gap, std::string_view(reinterpret_cast<const char*>(message.data()), std::size(message)));
 			logger::log(std::format("{} : {}", namer::get_name(id.public_value), formatted));
 		}
-	}
-	catch (const boost::system::system_error& e) {
-		logger::exception_func(e);
+	} catch (const std::exception& e) {
+		logger::log_func_error(e.what());
+		co_return;
 	}
 	co_return;
 }
@@ -128,6 +125,7 @@ asio::awaitable<void> mydak::client::receive() {
 // Send messages to the server loop
 asio::awaitable<void> mydak::client::send() {
 	try {
+		/*
 		// Getting new public key if public_key is not the right size (Probably empty!)
 		if (std::size(id.public_hex) != proto::E2E_KEYS_HEX_L) {
 			constexpr size_t bin_len = proto::E2E_KEYS_RAW_L;
@@ -139,9 +137,10 @@ asio::awaitable<void> mydak::client::send() {
 
 			logger::log(std::format("Generated key: {}", std::string_view(hex.data(), std::size(hex) - 1))); // THROWING OUT NULL TERMINATOR
 		}
+		*/
 
 		// Sending our public key so we can get registered on the server
-		co_await asio::async_write(*socket, asio::buffer(public_key), asio::use_awaitable);
+		co_await asio::async_write(*socket, asio::buffer(id.public_key), asio::use_awaitable);
 
 		// Main loop
 		for (;;) {
@@ -213,9 +212,9 @@ asio::awaitable<void> mydak::client::send() {
 				#pragma endregion
 			}
 		}
-	}
-	catch (const boost::system::system_error& e) {
-		logger::exception_func(e);
+	} catch (const std::exception& e) {
+		logger::log_func_error(e.what());
+		co_return;
 	}
 	co_return;
 }
