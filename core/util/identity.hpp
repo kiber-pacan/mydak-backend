@@ -26,7 +26,6 @@ namespace mydak {
         #pragma region variables
         std::array<unsigned char, proto::E2E_KEYS_RAW_L> public_key{};
         std::array<unsigned char, proto::E2E_KEYS_RAW_L> private_key{};
-        std::string public_hex;
         std::uint16_t public_value;
 
         std::array<unsigned char, crypto_pwhash_SALTBYTES> salt;
@@ -35,6 +34,7 @@ namespace mydak {
         std::array<unsigned char, crypto_secretbox_NONCEBYTES> nonce;
         std::array<unsigned char, 48> private_key_encoded;
 
+        std::string_view login_view;
         std::string_view password_view;
         std::string filename;
 
@@ -46,6 +46,8 @@ namespace mydak {
         void initialize_credentials() {
             if (crypto_box_keypair(public_key.data(), private_key.data()) != 0)
                 throw std::runtime_error("Failed to generate key!");
+
+            logger::log(std::format("Your public key is: {}", tools::bin2hex_string(public_key)));
 
 
             randombytes_buf(salt.data(), std::size(salt));
@@ -72,19 +74,15 @@ namespace mydak {
 
             std::memcpy(&public_value, public_key.data(), sizeof(decltype(public_value)));
 
-            filename = std::format("{}.toml", public_hex);
-            logger::log_debug(std::format("Initialized credentials with public key {}", public_hex));
+            filename = std::format("{}.toml", login_view);
         }
 
-        void initialize(const std::string_view public_key_hex, const std::string_view password) {
+        void initialize(const std::string_view login, const std::string_view password) {
             this->password_view = password;
-            this->public_hex = public_key_hex;
+            this->login_view = login;
 
-            if (std::size(public_key_hex) > 0) {
-                if (filename = std::format("{}.toml", std::string_view(reinterpret_cast<const char *>(public_key_hex.data()), std::size(public_key_hex))); std::filesystem::exists(filename)) {
-
-                    this->public_hex = public_key_hex;
-
+            if (std::size(login_view) > 0) {
+                if (filename = std::format("{}.toml", std::string_view(login_view.data(), std::size(login_view))); std::filesystem::exists(filename)) {
                     load_keypair();
                     std::memcpy(&public_value, public_key.data(), sizeof(decltype(public_value)));
                     return;
@@ -108,7 +106,6 @@ namespace mydak {
                 keypair_file.insert_or_assign("memlimit", 134217728);
                 keypair_file.insert_or_assign("password_hash", tools::bin2hex_string(password_hash));
 
-                keypair_file.insert_or_assign("public_key", public_hex);
                 keypair_file.insert_or_assign("private_key_encoded", tools::bin2hex_string(private_key_encoded));
 
                 std::ofstream file;
@@ -145,8 +142,6 @@ namespace mydak {
         void load_keypair() {
             try {
                 toml::table keypair_file = toml::parse_file(filename);
-                std::cout <<"load" << std::endl;
-                try_load_value(salt, "salt");
                 try_load_value(salt, "salt");
 
                 std::size_t opslimit;
@@ -156,7 +151,6 @@ namespace mydak {
                 try_load_value(password_hash, "password_hash");
 
                 try_load_value(nonce, "nonce");
-                try_load_value(public_key, "public_key");
                 try_load_value(private_key_encoded, "private_key_encoded");
 
 
@@ -173,16 +167,23 @@ namespace mydak {
                 ) != 0) throw std::runtime_error("Failed to create password hash!");
                 if (password_hash != password_hash_copy) throw std::runtime_error("Failed to get the same password hash!");
 
+
                 if (crypto_secretbox_open_easy(
                     private_key.data(),
                     private_key_encoded.data(),
                     std::size(private_key_encoded),
                     nonce.data(),
                     password_hash.data()
-                ) != 0) throw std::runtime_error("Failed to encode private key!");
+                ) != 0) throw std::runtime_error("Failed to decode private key!");
+
+                crypto_scalarmult_base(
+                    public_key.data(),
+                    private_key.data()
+                );
+
+                logger::log(std::format("Your public key is: {}", tools::bin2hex_string(public_key)));
 
 
-                logger::log_debug("Loaded credentials from file");
             } catch (const std::exception& e) {
                 logger::exit_func(e.what());
             }
@@ -195,7 +196,6 @@ namespace mydak {
         [[nodiscard]] std::array<unsigned char, proto::E2E_KEYS_RAW_L> get_shared_secret(
             std::array<unsigned char, proto::E2E_KEYS_RAW_L> &recipient_key
         ) {
-            std::cout << "get_shared_secret start" << std::endl;
             const auto it = detail.shared_secrets_cache.find(recipient_key);
             if (it != detail.shared_secrets_cache.end()) return it->second;
 
@@ -207,7 +207,6 @@ namespace mydak {
             ) != 0) throw std::runtime_error("Failed to create shared secret!");
 
             detail.shared_secrets_cache[recipient_key] = shared_secret;
-            std::cout << "get_shared_secret end" << std::endl;
 
             return shared_secret;
         }
@@ -217,32 +216,24 @@ namespace mydak {
         #pragma region messages
         [[nodiscard]] auto encode_message(
             std::array<unsigned char, proto::E2E_KEYS_RAW_L> &recipient_key,
-            std::vector<unsigned char> message
+            const std::vector<unsigned char> &message
         ) {
-            try {
-                std::vector<unsigned char> encrypted_message;
-                // [Nonce][MAC][Message]
-                encrypted_message.resize(crypto_box_NONCEBYTES + std::size(message) + crypto_box_MACBYTES);
+            std::vector<unsigned char> encrypted_message;
+            // [Nonce][MAC][Message]
+            encrypted_message.resize(crypto_box_NONCEBYTES + std::size(message) + crypto_box_MACBYTES);
 
-                // Generating nonce in encrypted_message vector
-                randombytes_buf(encrypted_message.data(), crypto_box_NONCEBYTES);
+            // Generating nonce in encrypted_message vector
+            randombytes_buf(encrypted_message.data(), crypto_box_NONCEBYTES);
 
-                if (crypto_box_easy_afternm(
-                    encrypted_message.data() + crypto_box_NONCEBYTES, // Setting pointer after nonce
-                    message.data(), // Pointer to the raw message
-                    std::size(message), // Size of the raw message
-                    encrypted_message.data(), // Pointer to the nonce
-                    get_shared_secret(recipient_key).data() // Shared secret
-                ) != 0) throw std::runtime_error("Failed to encode message!");
+            if (crypto_box_easy_afternm(
+                encrypted_message.data() + crypto_box_NONCEBYTES, // Setting pointer after nonce
+                message.data(), // Pointer to the raw message
+                std::size(message), // Size of the raw message
+                encrypted_message.data(), // Pointer to the nonce
+                get_shared_secret(recipient_key).data() // Shared secret
+            ) != 0) throw std::runtime_error("Failed to encode message!");
 
-                for (int i = 0; i < std::size(encrypted_message); ++i) {
-                    std::cout << i << " " << encrypted_message[i] << std::endl;
-                }
-
-                return encrypted_message;
-            } catch (const std::exception& e) {
-                logger::exit_func(e.what());
-            }
+            return encrypted_message;
         }
 
         [[nodiscard]] auto decode_message(
@@ -250,30 +241,19 @@ namespace mydak {
             // [Nonce][MAC][Message]
             const std::vector<unsigned char>& encrypted_message
         ) {
-            try {
-                std::cout << "decoding start" << std::endl;
-                std::vector<unsigned char> decoded_message;
+            std::vector<unsigned char> decoded_message;
 
-                decoded_message.resize(std::size(encrypted_message) - crypto_box_NONCEBYTES - crypto_box_MACBYTES);
+            decoded_message.resize(std::size(encrypted_message) - crypto_box_NONCEBYTES - crypto_box_MACBYTES);
 
-                for (int i = 0; i < std::size(encrypted_message); ++i) {
-                    std::cout << i << " " << encrypted_message[i] << std::endl;
-                }
+            if (crypto_box_open_easy_afternm(
+                decoded_message.data(), // Pointer to the decoded message
+                encrypted_message.data() + crypto_box_NONCEBYTES, // Pointer to the encoded message portion
+                std::size(encrypted_message) - crypto_box_NONCEBYTES, // Size of encoded message portion
+                encrypted_message.data(), // Pointer to the nonce
+                get_shared_secret(recipient_key).data() // Shared secret
+            ) != 0) throw std::runtime_error("Failed to decode message!");
 
-                if (crypto_box_open_easy_afternm(
-                    decoded_message.data(), // Pointer to the decoded message
-                    encrypted_message.data() + crypto_box_NONCEBYTES, // Pointer to the encoded message portion
-                    std::size(encrypted_message) - crypto_box_NONCEBYTES, // Size of encoded message portion
-                    encrypted_message.data(), // Pointer to the nonce
-                    get_shared_secret(recipient_key).data() // Shared secret
-                ) != 0) throw std::runtime_error("Failed to decode message!");
-
-                std::cerr << "decoding end" << std::endl;
-
-                return decoded_message;
-            } catch (const std::exception& e) {
-                logger::exit_func(e.what());
-            }
+            return decoded_message;
         }
         #pragma endregion
     };
