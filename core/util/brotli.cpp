@@ -45,7 +45,7 @@ std::vector<unsigned char> mydak::brotli::compress(std::string_view string) {
 }
 
 std::vector<unsigned char> mydak::brotli::decompress(const std::vector<unsigned char>& text) {
-    std::cout << "decompressing text" << std::endl;
+    std::cout << "decompression start" << std::endl;
     auto instance = BrotliDecoderCreateInstance(nullptr, nullptr, nullptr);
     std::array<uint8_t, BROTLI_BUFFER_SIZE> buffer{};
     std::stringstream result;
@@ -68,6 +68,8 @@ std::vector<unsigned char> mydak::brotli::decompress(const std::vector<unsigned 
 
 
     BrotliDecoderDestroyInstance(instance);
+
+    std::cout << "decompressed message" << std::endl;
     return {
         std::istreambuf_iterator<char>(result),
         std::istreambuf_iterator<char>()

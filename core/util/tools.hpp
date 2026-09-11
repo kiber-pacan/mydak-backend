@@ -191,7 +191,7 @@ namespace mydak::tools {
             hex.data(),
             std::size(hex),
             reinterpret_cast<const unsigned char*>(bin.data()), std::size(bin)
-        ) != nullptr) {
+        ) == nullptr) {
             logger::exit_func("Failed to convert binary to hex");
         }
 
@@ -205,7 +205,7 @@ namespace mydak::tools {
             hex.data(),
             std::size(hex),
             reinterpret_cast<const unsigned char*>(bin.data()), std::size(bin)
-        ) != nullptr) {
+        ) == nullptr) {
             logger::exit_func("Failed to convert binary to hex");
         }
 
@@ -218,7 +218,7 @@ namespace mydak::tools {
             dest,
             size,
             reinterpret_cast<const unsigned char*>(bin.data()), std::size(bin)
-        ) != nullptr) {
+        ) == nullptr) {
             logger::exit_func("Failed to convert binary to hex");
         }
     }

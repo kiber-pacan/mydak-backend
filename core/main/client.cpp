@@ -76,7 +76,6 @@ asio::awaitable<void> mydak::client::receive() {
 				greetings.data(),
 				proto::MESSAGE_SIZE_L
 			);
-			std::cout << message_size << std::endl;
 
 			if (message_size < 1) continue;
 
@@ -87,24 +86,19 @@ asio::awaitable<void> mydak::client::receive() {
 				greetings.data() + proto::MESSAGE_SIZE_L,
 				std::size(sender_public_key)
 			);
-			std::cout << "got sender_public_key" << std::endl;
-			for (std::size_t i = 0; i < std::size(sender_public_key); i++) {
-				std::cout << i << " " << sender_public_key[i] << std::endl;
-			}
+
+
 
 			std::vector<unsigned char> raw_message{};
 			raw_message.resize(message_size);
 
 			// Receiving message
 			co_await asio::async_read(*socket, asio::buffer(raw_message.data(), raw_message.size()), asio::use_awaitable);
-			std::cout << "got message" << std::endl;
 
 			// Decoding -> decompressing
+			std::cout << "got message" << std::endl;
 			std::vector<unsigned char> message = brotli::decompress(id.decode_message(sender_public_key, raw_message));
-
-			std::cout << "decompressed messgtw4" << std::endl;
-
-
+			//std::vector<unsigned char> message = brotli::decompress(raw_message);
 
 
 			#pragma region gap shenanigans
@@ -189,6 +183,8 @@ asio::awaitable<void> mydak::client::send() {
 				// Compress and encrypt message
 				// Compressing -> encoding
 				const auto processed_message = id.encode_message(recipient, brotli::compress(message_raw));
+				//const auto processed_message = brotli::compress(message_raw);
+
 
 
 				// Getting encrypted message size
