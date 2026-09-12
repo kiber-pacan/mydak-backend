@@ -6,6 +6,8 @@
 #define MYDAK_BACKEND_LOCAL_SERVER_H
 
 
+
+
 #include "brotli.hpp"
 #include <boost/asio.hpp>
 
@@ -15,13 +17,13 @@ namespace mydak {
 	struct client;
 
 	struct server_connection : std::enable_shared_from_this<server_connection> {
-		server_connection(asio::io_context& io, const std::shared_ptr<client>& client) :
+		server_connection(asio::io_context& io, client& client) :
 			socket(std::make_shared<asio::ip::tcp::socket>(io)),
 			client(client)
 		{}
 
 		std::shared_ptr<asio::ip::tcp::socket> socket;
-		const std::shared_ptr<client>& client;
+		client& client;
 
 
 		// Receive messages from frontend
@@ -32,14 +34,17 @@ namespace mydak {
 	};
 
 	struct local_server : std::enable_shared_from_this<local_server> {
-		local_server(asio::io_context& io, const std::shared_ptr<client>& client) :
-			io(io),
+		local_server(
+			asio::io_context& io,
+			client& client
+		) : io(io),
 			client(client)
 		{}
 
 		std::string recipient{};
 		asio::io_context& io;
-		const std::shared_ptr<client>& client;
+		client& client;
+
 
 		std::shared_ptr<asio::ip::tcp::acceptor> acceptor{};
 

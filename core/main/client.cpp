@@ -10,6 +10,8 @@
 #include <unistd.h>
 #include <sodium.h>
 
+
+
 #include "client.hpp"
 
 #include "brotli.hpp"
@@ -19,6 +21,26 @@
 #include "util/proto.hpp"
 
 namespace asio = boost::asio;
+
+void mydak::client::add_sender_message(const std::string_view message) const {
+	QMetaObject::invokeMethod(
+		messages_rectangle,
+		"add_message",
+		Qt::QueuedConnection,
+		Q_ARG(QVariant, QString::fromUtf8(message.data(), std::size(message))),
+		Q_ARG(QVariant, "sender")
+	);
+}
+
+void mydak::client::add_recipient_message(const std::string_view message) const {
+	QMetaObject::invokeMethod(
+		messages_rectangle,
+		"add_message",
+		Qt::QueuedConnection,
+		Q_ARG(QVariant, QString::fromUtf8(message.data(), std::size(message))),
+		Q_ARG(QVariant, "recipient")
+	);
+}
 
 asio::awaitable<void> mydak::client::initialize(const int current_try) {
 	try {
@@ -112,8 +134,11 @@ asio::awaitable<void> mydak::client::receive() {
 			#pragma endregion
 
 			// Printing message with name based in public key hash
-			std::string formatted = std::format("{}{}", gap, std::string_view(reinterpret_cast<const char*>(message.data()), std::size(message)));
+			auto message_view = std::string_view(reinterpret_cast<const char*>(message.data()), std::size(message));
+			std::string formatted = std::format("{}{}", gap, message_view);
 			logger::log(std::format("{} : {}", namer::get_name(id.public_key_value), formatted));
+
+			add_recipient_message(message_view);
 		}
 	} catch (const std::exception& e) {
 		logger::log_func_error(e.what());
@@ -210,6 +235,8 @@ asio::awaitable<void> mydak::client::send() {
 				// MESSAGE
 				co_await asio::async_write(*socket, asio::buffer(processed_message), asio::use_awaitable);
 				#pragma endregion
+
+				add_sender_message(message_raw);
 			}
 		}
 	} catch (const std::exception& e) {

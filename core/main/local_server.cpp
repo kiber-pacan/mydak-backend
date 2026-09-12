@@ -37,21 +37,21 @@ asio::awaitable<void> mydak::server_connection::receive_loop() {
             }
 
             memcpy(
-                client->recipient.data(),
+                client.recipient.data(),
                 message_raw.data() + proto::GREETINGS_PREFIX_L,
                 proto::E2E_KEYS_RAW_L
             );
 
-            client->recipient_hex = tools::bin2hex_string(client->recipient);
+            client.recipient_hex = tools::bin2hex_string(client.recipient);
 
             constexpr std::size_t message_start = proto::GREETINGS_PREFIX_L + proto::E2E_KEYS_RAW_L;
-            client->messages.emplace(
+            client.messages.emplace(
                 reinterpret_cast<const char*>(message_raw.data()) + message_start,
                 std::size(message_raw) - message_start
             );
 
             const boost::system::error_code e;
-            co_await client->send_channel_ptr->async_send(e, asio::use_awaitable);
+            co_await client.send_channel_ptr->async_send(e, asio::use_awaitable);
 
         }
     } catch (const std::exception& e) {
@@ -67,7 +67,7 @@ asio::awaitable<void> mydak::server_connection::send_loop() {
 
     try {
         for (;;) {
-            co_await client->receive_channel_ptr->async_receive();
+            co_await client.receive_channel_ptr->async_receive();
 
 
         }

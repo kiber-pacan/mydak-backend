@@ -11,18 +11,26 @@
 #include "parameters_accessor.hpp"
 #include "toml++/toml.h"
 
+#include <QGuiApplication>
+#include <QQmlApplicationEngine>
+
 namespace asio = boost::asio;
 
 namespace mydak { using send_channel = asio::experimental::channel<void(boost::system::error_code)>; }
 
 namespace mydak {
 	struct client : std::enable_shared_from_this<client> {
-
-		client(asio::io_context& io, const char*&& ip, const char*&& port, int argc, char* argv[])
-			:
-			io(io),
+		client(
+			asio::io_context& io,
+			const char*&& ip,
+			const char*&& port,
+			QObject*& messages_rectangle,
+			int argc,
+			char* argv[]
+		) : io(io),
 			ip(ip),
-			port(port)
+			port(port),
+			messages_rectangle(messages_rectangle)
 		{
 			set_parameters(
 				args::parameters_accessor(argc, argv),
@@ -48,6 +56,8 @@ namespace mydak {
 				);
 			}
 			// KEYPAIR END
+
+
 		}
 
 		// I think it's just easier to do this shit
@@ -63,6 +73,11 @@ namespace mydak {
 		static void load_keypair(std::string_view private_key_path) {
 			toml::table keypair;
 		}
+
+
+		void add_sender_message(std::string_view message) const;
+
+		void add_recipient_message(std::string_view message) const;
 
 	
 		asio::awaitable<void> initialize(int current_try);
@@ -91,6 +106,8 @@ namespace mydak {
 		std::string login{};
 		std::string_view password{};
 
+		// QT
+		QObject*& messages_rectangle;
 
 		std::shared_ptr<send_channel> send_channel_ptr;
 		std::shared_ptr<send_channel> receive_channel_ptr;
