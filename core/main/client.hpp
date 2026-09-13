@@ -9,11 +9,11 @@
 #include "identity.hpp"
 #include "parameters.hpp"
 #include "parameters_accessor.hpp"
+#include "qt_ptrs.hpp"
 #include "toml++/toml.h"
 
-#include <QGuiApplication>
-#include <QQmlApplicationEngine>
 
+class QObject;
 namespace asio = boost::asio;
 
 namespace mydak { using send_channel = asio::experimental::channel<void(boost::system::error_code)>; }
@@ -24,13 +24,13 @@ namespace mydak {
 			asio::io_context& io,
 			const char*&& ip,
 			const char*&& port,
-			QObject*& messages_rectangle,
+			const qt_ptrs& qt_pointers,
 			int argc,
 			char* argv[]
 		) : io(io),
 			ip(ip),
 			port(port),
-			messages_rectangle(messages_rectangle)
+			qt_pointers(qt_pointers)
 		{
 			set_parameters(
 				args::parameters_accessor(argc, argv),
@@ -107,7 +107,7 @@ namespace mydak {
 		std::string_view password{};
 
 		// QT
-		QObject*& messages_rectangle;
+		qt_ptrs qt_pointers;
 
 		std::shared_ptr<send_channel> send_channel_ptr;
 		std::shared_ptr<send_channel> receive_channel_ptr;

@@ -14,6 +14,10 @@
 
 #include "client.hpp"
 
+#include <qobjectdefs.h>
+#include <qstring.h>
+#include <qvariant.h>
+
 #include "brotli.hpp"
 #include "coh.hpp"
 #include "logger.hpp"
@@ -24,21 +28,21 @@ namespace asio = boost::asio;
 
 void mydak::client::add_sender_message(const std::string_view message) const {
 	QMetaObject::invokeMethod(
-		messages_rectangle,
+		qt_pointers.messages,
 		"add_message",
 		Qt::QueuedConnection,
 		Q_ARG(QVariant, QString::fromUtf8(message.data(), std::size(message))),
-		Q_ARG(QVariant, "sender")
+		Q_ARG(QVariant, 0)
 	);
 }
 
 void mydak::client::add_recipient_message(const std::string_view message) const {
 	QMetaObject::invokeMethod(
-		messages_rectangle,
+		qt_pointers.messages,
 		"add_message",
 		Qt::QueuedConnection,
 		Q_ARG(QVariant, QString::fromUtf8(message.data(), std::size(message))),
-		Q_ARG(QVariant, "recipient")
+		Q_ARG(QVariant, 1)
 	);
 }
 

@@ -17,6 +17,9 @@
 
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
+#include <QFontDatabase>
+
+#include "qt_ptrs.hpp"
 
 namespace asio = boost::asio;
 
@@ -56,18 +59,32 @@ namespace mydak {
 
 	static int qt(
 		int argc, char* argv[],
-		QObject*& messages_rectangle
+		qt_ptrs& ptrs, std::promise<void>& qt_signal_promise
 	) {
 		QGuiApplication app(argc, argv);
-		QQmlApplicationEngine app_engine{};
 
+		// FONT
+		const int font_id = QFontDatabase::addApplicationFont(":/core/Qt/fonts/fantasque_sans_mono/ttf/regular.ttf");
+		if (QStringList font_families = QFontDatabase::applicationFontFamilies(font_id);
+		!font_families.empty()) {
+			QGuiApplication::setFont(font_families.first());
+		} else {
+			logger::log_func_debug_error("Failed to load font");
+		}
+
+		QQmlApplicationEngine app_engine{};
 		app_engine.loadFromModule("mydak_backend", "Main");
 
 		if (app_engine.rootObjects().isEmpty()) return -1;
 		auto main = app_engine.rootObjects().constFirst();
-		messages_rectangle = main->findChild<QObject*>("messages_rectangle");
 
-		return app.exec();
+		// QT PTRS
+		ptrs.messages = main->findChild<QObject*>("messages_rectangle");
+		qt_signal_promise.set_value();
+
+
+
+		return QGuiApplication::exec();
 	}
 }
 
@@ -77,15 +94,18 @@ int main(int argc, char* argv[]) {
 	if (sodium_init() != 0)
 		throw std::runtime_error("Failed to init sodium!");
 
-	// QT
-	QObject* messages_rectangle;
-	std::thread qt_thread(mydak::qt, argc, argv, std::ref(messages_rectangle));
+	#pragma region QT
+	mydak::qt_ptrs qt_pointers;
+	std::promise<void> qt_signal;
+	std::thread qt_thread(mydak::qt, argc, argv, std::ref(qt_pointers), std::ref(qt_signal));
+	qt_signal.get_future().get(); // Wait for qt_thread to get all the refs
+
 	qt_thread.detach();
+	#pragma endregion
 
 	auto& io = mydak::coh::io();
-	mydak::client client(io, "127.0.0.1", "8888", messages_rectangle, argc, argv);
-	//89d8deaddeffef6e8479965176daaeb88e253c25046a65f180d030423f881d73
-	//03d4e313161c0b208a514452e1171032e2025182ae7ed6233d9384bfdb18d210
+	mydak::client client(io, "127.0.0.1", "8888", qt_pointers, argc, argv);
+
 	mydak::coh::detached(client.initialize(0));
 
 	io.run();

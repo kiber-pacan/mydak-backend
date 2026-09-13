@@ -72,7 +72,7 @@ asio::awaitable<void> mydak::server_connection::send_loop() {
 
         }
     } catch (const std::exception& e) {
-        std::cout << std::format("exception in {} : {}", __func__, e.what()) << std::endl;
+        std::cout << std::format("excepthashion in {} : {}", __func__, e.what()) << std::endl;
     }
 
     co_return;

@@ -59,6 +59,10 @@ qt_add_executable(${EXECUTABLE_NAME}
         core/util/identity.hpp
         core/util/identity.hpp
 
+        core/Qt/message_model.hpp
+        core/Qt/message_model.cpp
+        core/Qt/qt_ptrs.hpp
+        core/Qt/qt_ptrs.hpp
 )
 
 target_include_directories(${EXECUTABLE_NAME} PRIVATE
@@ -67,16 +71,32 @@ target_include_directories(${EXECUTABLE_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/core/main
         ${CMAKE_CURRENT_SOURCE_DIR}/core/util
         ${CMAKE_CURRENT_SOURCE_DIR}/core/parameters
+        ${CMAKE_CURRENT_SOURCE_DIR}/core/Qt
 )
 
 
 qt_add_qml_module(${EXECUTABLE_NAME}
         URI ${EXECUTABLE_NAME_LOWER_DASH}
         VERSION 1.0
+
+        SOURCES
+        core/Qt/message_model.hpp
+        core/Qt/message_model.cpp
+
         QML_FILES
-        core/qml/widgets/Main.qml
-        core/qml/widgets/MessagesRectangle.qml
-        core/qml/widgets/RecipientRectangle.qml
+        core/Qt/QtQuick/Main.qml
+        core/Qt/QtQuick/MessagesRectangle.qml
+        core/Qt/QtQuick/RecipientRectangle.qml
+        core/Qt/QtQuick/InputRectangle.qml
+        core/Qt/QtQuick/Theme.qml
+)
+
+qt_add_resources(${EXECUTABLE_NAME} "fonts"
+        FILES
+        core/Qt/fonts/fantasque_sans_mono/ttf/regular.ttf
+        core/Qt/fonts/fantasque_sans_mono/ttf/bold.ttf
+        core/Qt/fonts/fantasque_sans_mono/ttf/bold_italic.ttf
+        core/Qt/fonts/fantasque_sans_mono/ttf/italic.ttf
 )
 
 # Adding sources to project

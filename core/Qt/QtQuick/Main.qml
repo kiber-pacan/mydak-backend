@@ -34,12 +34,16 @@ ApplicationWindow {
 
             color: "#303030"
 
+            property int input_rectanle_height: 40
+
+
             Column {
                 width: parent.width
                 height: parent.height
 
-                // Recipient name
+                anchors.top: parent.top
 
+                // Recipient name
                 RecipientRectangle {
                     id: recipient_rectangle
                     objectName: "recipient_rectangle"
@@ -49,17 +53,15 @@ ApplicationWindow {
                     id: messages_rectangle
                     objectName: "messages_rectangle"
 
-                    padding: 10
+                    height: parent.height - input_rectangle.height - recipient_rectangle.height
                 }
+            }
 
+            InputRectangle {
+                id: input_rectangle
+                objectName: "input_rectangle"
 
-
-                /*
-                Component.onCompleted: {
-                    log.add_message("Привет", "recipient")
-                    log.add_message("Пошёл нахуй мудак", "sender")
-                    log.add_message("ОТСОСИ ЕБАТЬ", "sender")
-                }*/
+                anchors.bottom: parent.bottom
             }
         }
     }
