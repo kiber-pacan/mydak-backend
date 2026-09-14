@@ -32,6 +32,7 @@ ApplicationWindow {
             width: parent.width - 201
             height: parent.height
 
+
             color: "#303030"
 
             property int input_rectanle_height: 40
@@ -41,7 +42,9 @@ ApplicationWindow {
                 width: parent.width
                 height: parent.height
 
-                anchors.top: parent.top
+                anchors.fill: parent
+                anchors.rightMargin: 5
+                anchors.leftMargin: 5
 
                 // Recipient name
                 RecipientRectangle {

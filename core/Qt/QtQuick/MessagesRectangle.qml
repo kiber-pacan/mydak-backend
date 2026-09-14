@@ -40,7 +40,13 @@ Rectangle {
                 id: message_rectangle
 
                 color: "#202020"
-                radius: 64
+
+                // RADIUS
+                topLeftRadius: 64
+                topRightRadius: 64
+
+                bottomLeftRadius: (model.type === 0) ? 64 : 0
+                bottomRightRadius: (model.type === 1) ? 64 : 0
 
                 anchors.right: (model.type === 0) ? parent.right : undefined
                 anchors.left: (model.type === 1) ? parent.left : undefined

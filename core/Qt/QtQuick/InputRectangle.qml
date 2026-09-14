@@ -42,6 +42,11 @@ Rectangle {
 
             color: "#202020"
 
+            function send_message() {
+                qt_connector.send_message(message_text_edit.text)
+                message_text_edit.text = ""
+            }
+
             TextEdit {
                 id: message_text_edit
                 objectName: "message_text_edit"
@@ -54,9 +59,17 @@ Rectangle {
                 width: parent.width - column.button_size - margin // TODO MAYBE margin * 2
                 height: contentHeight + margin * 2
 
-                text: "Enter a message"
+                //text: "Enter a message"
+                text: ""
                 color: "#ffffff"
                 wrapMode: TextEdit.Wrap
+
+                Keys.onEnterPressed: (event) => {
+                    background.send_message()
+                }
+                Keys.onReturnPressed: (event) => {
+                    background.send_message()
+                }
             }
 
             Button {
@@ -69,7 +82,9 @@ Rectangle {
                 anchors.right: parent.right
                 anchors.bottom: parent.bottom
 
-                
+                onClicked: {
+                    background.send_message()
+                }
 
                 background: Rectangle {
                     property int padding: 16
