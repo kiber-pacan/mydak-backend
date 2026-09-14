@@ -18,7 +18,7 @@
 #include "toml++/toml.hpp"
 
 namespace mydak {
-    struct detail {
+    struct identity_detail {
         // public key - shared secret
         mutable std::map<std::array<unsigned char, proto::E2E_KEYS_RAW_L>, std::array<unsigned char, proto::E2E_KEYS_RAW_L>> shared_secrets_cache;
     };
@@ -40,7 +40,7 @@ namespace mydak {
 
         std::uint16_t public_key_value;
 
-        detail detail;
+        identity_detail identity_detail;
 
         static constexpr std::uint32_t OPSLIMIT = 2;
         static constexpr std::uint32_t MEMLIMIT = 134217728;
@@ -214,8 +214,8 @@ namespace mydak {
             const std::array<unsigned char, proto::E2E_KEYS_RAW_L> &recipient_key
         ) const {
             // Try to find shared secret in cache
-            const auto it = detail.shared_secrets_cache.find(recipient_key);
-            if (it != detail.shared_secrets_cache.end()) return it->second;
+            const auto it = identity_detail.shared_secrets_cache.find(recipient_key);
+            if (it != identity_detail.shared_secrets_cache.end()) return it->second;
 
             // Generate shared secret
             std::array<unsigned char, proto::E2E_KEYS_RAW_L> shared_secret; // NOLINT(*-pro-type-member-init)
@@ -226,7 +226,7 @@ namespace mydak {
             ) != 0) throw std::runtime_error("Failed to create shared secret!");
 
             // Add it to cache
-            detail.shared_secrets_cache[recipient_key] = shared_secret;
+            identity_detail.shared_secrets_cache[recipient_key] = shared_secret;
 
             return shared_secret;
         }
