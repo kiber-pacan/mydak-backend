@@ -10,8 +10,6 @@
 #include <unistd.h>
 #include <sodium.h>
 
-
-
 #include "client.hpp"
 
 #include <qobjectdefs.h>
@@ -26,26 +24,11 @@
 
 namespace asio = boost::asio;
 
-void mydak::client::add_sender_message(const std::string_view message) const {
-	QMetaObject::invokeMethod(
-		qt_pointers.messages,
-		"add_message",
-		Qt::QueuedConnection,
-		Q_ARG(QVariant, QString::fromUtf8(message.data(), std::size(message))),
-		Q_ARG(QVariant, 0)
-	);
-}
+constexpr std::string_view FUCKED_UP_MESSAGE_SIZE =
+	"Total message size is not in bounds!";
 
-void mydak::client::add_recipient_message(const std::string_view message) const {
-	QMetaObject::invokeMethod(
-		qt_pointers.messages,
-		"add_message",
-		Qt::QueuedConnection,
-		Q_ARG(QVariant, QString::fromUtf8(message.data(), std::size(message))),
-		Q_ARG(QVariant, 1)
-	);
-}
 
+#pragma region Main
 asio::awaitable<void> mydak::client::initialize(const int current_try) {
 	try {
 		int wait_seconds = wait_time * (current_try > 0) + (wait_time_add == -1 ? wait_time : wait_time_add) * std::max(0, current_try - 1);
@@ -65,8 +48,8 @@ asio::awaitable<void> mydak::client::initialize(const int current_try) {
 		logger::log_debug("Connected!");
 
 		// Creating channels
-		send_channel_ptr = std::make_shared<send_channel>(socket->get_executor());
-		receive_channel_ptr = std::make_shared<send_channel>(socket->get_executor());
+		client_detail.send_channel_ptr = std::make_shared<signal_channel>(socket->get_executor());
+		client_detail.receive_channel_ptr = std::make_shared<signal_channel>(socket->get_executor());
 	}
 	catch (const boost::system::system_error& e) {
 		logger::exception_func(e);
@@ -86,7 +69,7 @@ asio::awaitable<void> mydak::client::initialize(const int current_try) {
 }
 
 // Receive messages from the server loop
-asio::awaitable<void> mydak::client::receive() {
+asio::awaitable<void> mydak::client::receive_loop() const {
 	try {
 		for (;;)  {
 			// [message size][public key]
@@ -142,7 +125,7 @@ asio::awaitable<void> mydak::client::receive() {
 			std::string formatted = std::format("{}{}", gap, message_view);
 			logger::log(std::format("{} : {}", namer::get_name(id.public_key_value), formatted));
 
-			add_recipient_message(message_view);
+			qt_add_recipient_message(message_view);
 		}
 	} catch (const std::exception& e) {
 		logger::log_func_error(e.what());
@@ -152,7 +135,7 @@ asio::awaitable<void> mydak::client::receive() {
 }
 
 // Send messages to the server loop
-asio::awaitable<void> mydak::client::send() {
+asio::awaitable<void> mydak::client::send_loop() {
 	try {
 		/*
 		// Getting new public key if public_key is not the right size (Probably empty!)
@@ -173,17 +156,17 @@ asio::awaitable<void> mydak::client::send() {
 
 		// Main loop
 		for (;;) {
-			co_await send_channel_ptr->async_receive(asio::use_awaitable);
+			co_await client_detail.send_channel_ptr->async_receive(asio::use_awaitable);
 
-			for (; not messages.empty(); messages.pop()) {
-				std::string& message_raw = messages.front();
+			for (; not client_detail.messages_queue.empty(); client_detail.messages_queue.pop()) {
+				std::string& message_raw = client_detail.messages_queue.front();
 
 				#pragma region Command parser
 				if (message_raw[0] == '/') {
 					if (message_raw[1] == 'r' && message_raw[2] == ' ') {
 						if (sodium_hex2bin(
-							recipient.data(),
-							std::size(recipient),
+							client_detail.recipient.data(),
+							std::size(client_detail.recipient),
 							message_raw.data() + 3,
 							std::size(message_raw) - 3, nullptr, nullptr, nullptr // length of {/r }
 						) != 0) {
@@ -210,7 +193,7 @@ asio::awaitable<void> mydak::client::send() {
 
 				// Compress and encrypt message
 				// Compressing -> encoding
-				const auto processed_message = id.encode_message(recipient, brotli::compress(message_raw));
+				const auto processed_message = id.encode_message(client_detail.recipient, brotli::compress(message_raw));
 				//const auto processed_message = brotli::compress(message_raw);
 
 
@@ -218,14 +201,27 @@ asio::awaitable<void> mydak::client::send() {
 				// Getting encrypted message size
 				#pragma region Message size
 				const auto encrypted_size = static_cast<uint32_t>(std::size(processed_message));
-				std::array<char, proto::MESSAGE_SIZE_L> size{};
+				std::size_t message_size = std::size(processed_message);
+				// TODO MAKE NOTIFICATION IN QT
+				if (message_size < proto::MIN_MESSAGE_SIZE || message_size > proto::MAX_MESSAGE_SIZE) {
+					logger::log_debug_error(
+						std::format(
+							"{} ({})",
+							FUCKED_UP_MESSAGE_SIZE,
+							message_size
+						)
+					);
+					break;
+				}
+
+				std::array<char, proto::MESSAGE_SIZE_L> size_array{};
 
 				// We send message in little-endian,
 				// so on the server side we should use byte swap if server using big-endian
 				if constexpr (std::endian::native == std::endian::big) {
-					size = std::bit_cast<std::array<char, proto::MESSAGE_SIZE_L>>(std::byteswap(encrypted_size));
+					size_array = std::bit_cast<std::array<char, proto::MESSAGE_SIZE_L>>(std::byteswap(encrypted_size));
 				} else {
-					size = std::bit_cast<std::array<char, proto::MESSAGE_SIZE_L>>(encrypted_size);
+					size_array = std::bit_cast<std::array<char, proto::MESSAGE_SIZE_L>>(encrypted_size);
 				}
 				#pragma endregion
 
@@ -233,14 +229,14 @@ asio::awaitable<void> mydak::client::send() {
 				#pragma region Sending
 				// GREETINGS
 				co_await asio::async_write(*socket, asio::buffer(prefix), asio::use_awaitable);
-				co_await asio::async_write(*socket, asio::buffer(size), asio::use_awaitable);
-				co_await asio::async_write(*socket, asio::buffer(recipient), asio::use_awaitable);
+				co_await asio::async_write(*socket, asio::buffer(size_array), asio::use_awaitable);
+				co_await asio::async_write(*socket, asio::buffer(client_detail.recipient), asio::use_awaitable);
 
 				// MESSAGE
 				co_await asio::async_write(*socket, asio::buffer(processed_message), asio::use_awaitable);
 				#pragma endregion
 
-				add_sender_message(message_raw);
+				qt_add_sender_message(message_raw);
 			}
 		}
 	} catch (const std::exception& e) {
@@ -249,3 +245,42 @@ asio::awaitable<void> mydak::client::send() {
 	}
 	co_return;
 }
+
+void mydak::client::send_message(const std::string& message) {
+	// Add message to the queue
+	client_detail.messages_queue.emplace(message);
+
+	// Notify client about change
+	boost::system::error_code e;
+	client_detail.send_channel_ptr->try_send(e);
+}
+#pragma endregion
+
+
+#pragma region Qt
+void mydak::client::qt_add_sender_message(const std::string_view message) const {
+	const std::size_t message_size = std::size(message);
+	if (message_size < proto::MIN_MESSAGE_SIZE || message_size > proto::MAX_MESSAGE_SIZE) return;
+
+	QMetaObject::invokeMethod(
+		qt_pointers.messages_rectangle,
+		"add_message",
+		Qt::QueuedConnection,
+		Q_ARG(QVariant, QString::fromUtf8(message.data(), message_size)),
+		Q_ARG(QVariant, 0)
+	);
+}
+
+void mydak::client::qt_add_recipient_message(const std::string_view message) const {
+	const std::size_t message_size = std::size(message);
+	if (message_size < proto::MIN_MESSAGE_SIZE || message_size > proto::MAX_MESSAGE_SIZE) return;
+
+	QMetaObject::invokeMethod(
+		qt_pointers.messages_rectangle,
+		"add_message",
+		Qt::QueuedConnection,
+		Q_ARG(QVariant, QString::fromUtf8(message.data(), message_size)),
+		Q_ARG(QVariant, 1)
+	);
+}
+#pragma endregion

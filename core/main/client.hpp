@@ -7,6 +7,7 @@
 #include <queue>
 
 #include "identity.hpp"
+#include "namer.hpp"
 #include "parameters.hpp"
 #include "parameters_accessor.hpp"
 #include "qt_ptrs.hpp"
@@ -16,9 +17,19 @@
 class QObject;
 namespace asio = boost::asio;
 
-namespace mydak { using send_channel = asio::experimental::channel<void(boost::system::error_code)>; }
+namespace mydak {
+	using signal_channel = asio::experimental::channel<void(boost::system::error_code)>; }
 
 namespace mydak {
+	struct client_detail {
+		std::shared_ptr<signal_channel> send_channel_ptr;
+		std::shared_ptr<signal_channel> receive_channel_ptr;
+
+		std::queue<std::string> messages_queue{};
+
+		std::array<unsigned char, proto::E2E_KEYS_RAW_L> recipient{};
+
+	};
 	struct client : std::enable_shared_from_this<client> {
 		client(
 			asio::io_context& io,
@@ -32,13 +43,14 @@ namespace mydak {
 			port(port),
 			qt_pointers(qt_pointers)
 		{
+			auto p = args::parameters_accessor(argc, argv);
+			auto d = p.get<"--connect_tries">();
 			set_parameters(
-				args::parameters_accessor(argc, argv),
+				p,
 				connect_tries,
 				wait_time,
 				wait_time_add,
 				recipient_hex,
-				local_server,
 				login,
 				password
 			);
@@ -48,12 +60,8 @@ namespace mydak {
 			// KEYPAIR START
 			id = identity(login, password);
 			if (std::size(recipient_hex) > 0) {
-				auto bin = tools::hex2bin(recipient_hex);
-				memcpy(
-					recipient.data(),
-					bin.data(),
-					std::size(recipient)
-				);
+				auto recipient_bin = tools::hex2bin(recipient_hex);
+				set_recipient(recipient_bin);
 			}
 			// KEYPAIR END
 
@@ -74,17 +82,40 @@ namespace mydak {
 			toml::table keypair;
 		}
 
-
-		void add_sender_message(std::string_view message) const;
-
-		void add_recipient_message(std::string_view message) const;
-
-	
+		#pragma region Main
 		asio::awaitable<void> initialize(int current_try);
  
-		asio::awaitable<void> receive();
+		asio::awaitable<void> receive_loop() const;
 
-		asio::awaitable<void> send();
+		asio::awaitable<void> send_loop();
+
+		void send_message(const std::string& message);
+
+		void set_recipient(const std::vector<unsigned char>& recipient) {
+			memcpy(
+				client_detail.recipient.data(),
+				recipient.data(),
+				std::size(client_detail.recipient)
+			);
+
+			std::uint16_t value;
+			memcpy(&value, recipient.data(), sizeof(value));
+
+			QMetaObject::invokeMethod(
+				qt_pointers.recipient_rectangle,
+				"set_name",
+				Qt::QueuedConnection,
+				Q_ARG(QVariant, QString::fromUtf8(namer::get_name(value)))
+			);
+
+		}
+		#pragma endregion
+
+		#pragma region Qt
+		void qt_add_sender_message(std::string_view message) const;
+
+		void qt_add_recipient_message(std::string_view message) const;
+		#pragma endregion
 
 		// VARIABLES	
 		std::shared_ptr<asio::io_context> websocket_io;
@@ -99,20 +130,15 @@ namespace mydak {
 		std::int8_t wait_time_add{};
 
 		std::string recipient_hex{};
-		std::int8_t local_server;
 
 		identity id;
-		std::array<unsigned char, proto::E2E_KEYS_RAW_L> recipient{};
 		std::string login{};
 		std::string_view password{};
 
 		// QT
 		qt_ptrs qt_pointers;
 
-		std::shared_ptr<send_channel> send_channel_ptr;
-		std::shared_ptr<send_channel> receive_channel_ptr;
-
-		std::queue<std::string> messages{};
+		client_detail client_detail;
 	};
 }
 
