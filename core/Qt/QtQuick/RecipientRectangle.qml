@@ -11,11 +11,11 @@ Rectangle {
     width: parent.width
     height: 40
     Text {
-        id: name
+        id: recipient_name
         objectName: "recipient_name"
 
         anchors.centerIn: parent
         color: "#ffffff"
-        text: "RECIPIENT"
+        text: ""
     }
 }
