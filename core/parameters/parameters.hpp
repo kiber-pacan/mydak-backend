@@ -55,7 +55,6 @@ namespace mydak::args {
     #pragma endregion
 
 
-
     #pragma region Variants
     // ReSharper disable once CppFunctionIsNotImplemented; I fucking hate yellow highlights
     template <std::size_t... Indices>
@@ -172,7 +171,6 @@ namespace mydak::args {
         make_parameter<"--wait_time", details::TYPE_SMALL_NUMBER>(1, 64, 3),
         make_parameter<"--wait_time_add", details::TYPE_SMALL_NUMBER>(1, 64, 3),
         make_parameter<"--recipient", details::TYPE_STRING>(proto::E2E_KEYS_HEX_L, proto::E2E_KEYS_HEX_L, ""),
-        make_parameter<"--local-server", details::TYPE_SMALL_NUMBER>(0, 1, 0),
         make_parameter<"--login", details::TYPE_STRING>(3, 64, ""),
         make_parameter<"--password", details::TYPE_STRING>(8, 64, "password")
     );

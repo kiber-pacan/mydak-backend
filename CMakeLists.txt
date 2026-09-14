@@ -53,16 +53,16 @@ qt_add_executable(${EXECUTABLE_NAME}
 
         core/parameters/parameters_accessor.hpp
         core/parameters/parameters_accessor.cpp
-        core/main/local_server.cpp
-        core/main/local_server.hpp
         core/util/coh.hpp
         core/util/identity.hpp
         core/util/identity.hpp
 
-        core/Qt/message_model.hpp
-        core/Qt/message_model.cpp
-        core/Qt/qt_ptrs.hpp
-        core/Qt/qt_ptrs.hpp
+        core/Qt/util/message_model.hpp
+        core/Qt/util/message_model.cpp
+
+        core/Qt/connector/qt_connector.hpp
+        core/Qt/connector/qt_connector.cpp
+        core/Qt/connector/qt_ptrs.hpp
 )
 
 target_include_directories(${EXECUTABLE_NAME} PRIVATE
@@ -71,7 +71,10 @@ target_include_directories(${EXECUTABLE_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/core/main
         ${CMAKE_CURRENT_SOURCE_DIR}/core/util
         ${CMAKE_CURRENT_SOURCE_DIR}/core/parameters
+
         ${CMAKE_CURRENT_SOURCE_DIR}/core/Qt
+        ${CMAKE_CURRENT_SOURCE_DIR}/core/Qt/connector
+        ${CMAKE_CURRENT_SOURCE_DIR}/core/Qt/util
 )
 
 
@@ -80,8 +83,8 @@ qt_add_qml_module(${EXECUTABLE_NAME}
         VERSION 1.0
 
         SOURCES
-        core/Qt/message_model.hpp
-        core/Qt/message_model.cpp
+        core/Qt/util/message_model.hpp
+        core/Qt/util/message_model.cpp
 
         QML_FILES
         core/Qt/QtQuick/Main.qml
