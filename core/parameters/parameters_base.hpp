@@ -167,7 +167,7 @@ namespace mydak::args {
     parameter(
         uint32_t min,
         uint32_t max,
-        const std::string_view value
+        std::string_view value
     ) -> parameter<1>;
 
     // IP - 2
