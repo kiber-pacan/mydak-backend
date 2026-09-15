@@ -44,7 +44,7 @@ namespace mydak::tools {
     }
 
     // AT START
-    template <std::size_t N, typename Sequence>
+    template <std::size_t N, typename Enum>
     struct at;
 
     template <std::size_t N, std::size_t... Indices>

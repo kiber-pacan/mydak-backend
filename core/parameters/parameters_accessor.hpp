@@ -24,7 +24,7 @@ namespace mydak::args {
         template <tools::static_string Option>
         constexpr auto get() const {
             using type = std::decay_t<decltype(get_type_sequence())>;
-            const auto N = options_indices.consteval_at<Option>();
+            constexpr auto N = options_indices.consteval_at<Option>();
 
             return std::get<tools::at<N, type>::value>(parameters_internal[N]).get_data();
         }

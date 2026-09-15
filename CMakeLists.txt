@@ -88,10 +88,13 @@ qt_add_qml_module(${EXECUTABLE_NAME}
 
         QML_FILES
         core/Qt/QtQuick/Main.qml
-        core/Qt/QtQuick/MessagesRectangle.qml
-        core/Qt/QtQuick/RecipientRectangle.qml
-        core/Qt/QtQuick/InputRectangle.qml
+        core/Qt/QtQuick/MessagesColumn.qml
         core/Qt/QtQuick/Theme.qml
+
+        core/Qt/QtQuick/bars/top/RecipientBar_Top.qml
+        core/Qt/QtQuick/bars/top/UserBar_Top.qml
+        core/Qt/QtQuick/bars/bottom/InputBar_Bottom.qml
+        core/Qt/QtQuick/bars/bottom/LogoBar_Bottom.qml
 )
 
 qt_add_resources(${EXECUTABLE_NAME} "fonts"

@@ -56,14 +56,17 @@ namespace mydak {
 		const auto main = app_engine.rootObjects().constFirst();
 
 		// QT PTRS
-		qt_pointers.messages_rectangle = main->findChild<QObject*>("messages_rectangle");
-		qt_pointers.recipient_rectangle = main->findChild<QObject*>("recipient_rectangle");
+		qt_pointers.messages_column = main->findChild<QObject*>("messages_column");
+		qt_pointers.recipient_bar = main->findChild<QObject*>("recipient_bar");
+		qt_pointers.user_bar = main->findChild<QObject*>("user_bar");
+
 		qt_pointers.app = &app;
 		qt_pointers.app_engine = &app_engine;
 		qt_signal_promise.set_value();
 
-
-		return QGuiApplication::exec();
+		QGuiApplication::exec();
+		std::fflush(stdout);
+		std::_Exit(EXIT_SUCCESS);
 	}
 }
 
@@ -83,7 +86,8 @@ int main(int argc, char* argv[]) {
 	#pragma endregion
 
 	auto& io = mydak::coh::io();
-	mydak::client client(io, "127.0.0.1", "8888", qt_pointers, argc, argv);
+	mydak::args::parameters_accessor parameters(argc, argv);
+	mydak::client client(io, qt_pointers, parameters);
 
 	// Qt late init
 	mydak::qt_connector connector(client);

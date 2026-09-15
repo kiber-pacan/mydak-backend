@@ -117,8 +117,11 @@ namespace mydak::args {
                 if (ec != std::errc{}) {
                     std::string str;
                     str.reserve(32);
+                    str.append("Cannot convert ");
                     str.append(to_string_unsafe(value));
-                    str.append(" is not a number!");
+                    str.append(" to a number or it is not in limits (");
+                    str.append(this->limits_to_string());
+                    str.append(")!");
 
                     logger::exit_func(str);
                 }
@@ -191,7 +194,18 @@ namespace mydak::args {
     };
     parameter(std::string_view hostname) -> parameter<2>;
 
-    constexpr std::size_t parameters_variant_count = 3;
+    // int_16t - 0
+    template<>
+    struct parameter<3> : parameter_base_arithmetic<uint16_t> {
+        using parameter_base_arithmetic::parameter_base_arithmetic;
+    };
+    parameter(
+        uint16_t min,
+        uint16_t max,
+        const uint16_t& value
+    ) -> parameter<3>;
+
+    constexpr std::size_t parameters_variant_count = 4;
 
     #pragma endregion
 }

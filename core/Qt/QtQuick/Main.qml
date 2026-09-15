@@ -2,9 +2,14 @@ import QtQuick
 import QtQuick.Controls
 
 ApplicationWindow {
+    id: root
+    objectName: "root"
+
     width: 800
     height: 600
     visible: true
+
+    property int bar_height: 40
 
     Row {
         anchors.fill: parent
@@ -16,7 +21,26 @@ ApplicationWindow {
 
             color: "#202020"
 
-            // Sidebar
+
+            UserBar_Top {
+                width: parent.width
+                height: root.bar_height
+
+                anchors.top: parent.top
+
+                id: user_bar
+                objectName: "user_bar"
+            }
+
+            LogoBar_Bottom {
+                width: parent.width
+                height: root.bar_height
+
+                anchors.bottom: parent.bottom
+
+                id: logo_bar
+                objectName: "logo_bar"
+            }
         }
 
         // Separator
@@ -29,40 +53,40 @@ ApplicationWindow {
 
         // Main window
         Rectangle {
+            id: main
+            objectName: "main"
+
             width: parent.width - 201
             height: parent.height
 
-
             color: "#303030"
 
-            property int input_rectanle_height: 40
 
+            // RECIPIENT NAME TOP
+            RecipientBar_Top {
+                id: recipient_bar
+                objectName: "recipient_bar"
 
-            Column {
                 width: parent.width
-                height: parent.height
+                height: root.bar_height
 
-                anchors.fill: parent
-                anchors.rightMargin: 5
-                anchors.leftMargin: 5
-
-                // Recipient name
-                RecipientRectangle {
-                    id: recipient_rectangle
-                    objectName: "recipient_rectangle"
-                }
-
-                MessagesRectangle {
-                    id: messages_rectangle
-                    objectName: "messages_rectangle"
-
-                    height: parent.height - input_rectangle.height - recipient_rectangle.height
-                }
+                anchors.top: parent.top
             }
 
-            InputRectangle {
-                id: input_rectangle
-                objectName: "input_rectangle"
+            MessagesColumn {
+                id: messages_column
+                objectName: "messages_column"
+
+                width: parent.width
+                height: parent.height - input_bar.height - recipient_bar.height
+
+                anchors.centerIn: parent
+            }
+
+            // MESSAGE INPUT BOTTOM
+            InputBar_Bottom {
+                id: input_bar
+                objectName: "input_bar"
 
                 anchors.bottom: parent.bottom
             }

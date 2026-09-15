@@ -2,14 +2,13 @@ import QtQuick
 
 Rectangle {
     id: root
-    color: "#303030"
+    color: "#252525"
 
     function set_name(recipient) {
         recipient_name.text = recipient
     }
 
-    width: parent.width
-    height: 40
+
     Text {
         id: recipient_name
         objectName: "recipient_name"
@@ -17,5 +16,14 @@ Rectangle {
         anchors.centerIn: parent
         color: "#ffffff"
         text: ""
+    }
+
+    // BORDER
+    Rectangle {
+        width: parent.width
+        height: 1
+
+        color: "#505050"
+        anchors.bottom: parent.bottom
     }
 }

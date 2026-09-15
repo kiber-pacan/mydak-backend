@@ -30,6 +30,9 @@ constexpr std::string_view FUCKED_UP_MESSAGE_SIZE =
 
 #pragma region Main
 asio::awaitable<void> mydak::client::initialize(const int current_try) {
+	const auto wait_time = parameters.get<"--wait_time">();
+	const auto wait_time_add = parameters.get<"--wait_time_add">();
+	const auto connect_tries = parameters.get<"--connect_tries">();
 	try {
 		int wait_seconds = wait_time * (current_try > 0) + (wait_time_add == -1 ? wait_time : wait_time_add) * std::max(0, current_try - 1);
 		
@@ -43,7 +46,7 @@ asio::awaitable<void> mydak::client::initialize(const int current_try) {
 		// Trying to connect
 		asio::ip::tcp::resolver resolver(io);
 		socket = std::make_shared<asio::ip::tcp::socket>(io);
-		co_await asio::async_connect(*socket, resolver.resolve(ip, port));
+		co_await asio::async_connect(*socket, resolver.resolve(ip, std::to_string(port)));
 
 		logger::log_debug("Connected!");
 
@@ -137,20 +140,6 @@ asio::awaitable<void> mydak::client::receive_loop() const {
 // Send messages to the server loop
 asio::awaitable<void> mydak::client::send_loop() {
 	try {
-		/*
-		// Getting new public key if public_key is not the right size (Probably empty!)
-		if (std::size(id.public_hex) != proto::E2E_KEYS_HEX_L) {
-			constexpr size_t bin_len = proto::E2E_KEYS_RAW_L;
-
-			std::array<char, proto::E2E_KEYS_HEX_L> hex{};
-			randombytes_buf(public_key.data(), bin_len);
-
-			tools::bin2hex(public_key, hex.data(), std::size(hex));
-
-			logger::log(std::format("Generated key: {}", std::string_view(hex.data(), std::size(hex) - 1))); // THROWING OUT NULL TERMINATOR
-		}
-		*/
-
 		// Sending our public key so we can get registered on the server
 		co_await asio::async_write(*socket, asio::buffer(id.public_key), asio::use_awaitable);
 
@@ -172,7 +161,7 @@ asio::awaitable<void> mydak::client::send_loop() {
 						) != 0) {
 							logger::exit_func("Failed to convert hex to binary");
 						}
-						recipient_hex = std::string(message_raw.data() + 3, std::size(message_raw) - 3);
+						set_recipient(message_raw.data() + 3);
 
 						continue;
 					}
@@ -182,7 +171,7 @@ asio::awaitable<void> mydak::client::send_loop() {
 				}
 
 				// SET YOUR FUCKING RECIPIENT YOU STUPID WHORE
-				if (recipient_hex.empty()) {
+				if (client_detail.recipient.empty()) {
 					logger::log_error("No recipient provided. /r <RECIPIENT>");
 					continue;
 				}
@@ -254,6 +243,43 @@ void mydak::client::send_message(const std::string& message) {
 	boost::system::error_code e;
 	client_detail.send_channel_ptr->try_send(e);
 }
+
+void mydak::client::set_recipient(const void* ptr) {
+	memcpy(
+		client_detail.recipient.data(),
+		ptr,
+		std::size(client_detail.recipient)
+	);
+
+	std::uint16_t value;
+	memcpy(&value, ptr, sizeof(value));
+
+	QMetaObject::invokeMethod(
+		qt_pointers.recipient_bar,
+		"set_name",
+		Qt::QueuedConnection,
+		Q_ARG(QVariant, QString::fromUtf8(namer::get_name(value)))
+	);
+}
+
+void mydak::client::set_recipient(const std::vector<unsigned char>& recipient) {
+	memcpy(
+		client_detail.recipient.data(),
+		recipient.data(),
+		std::size(client_detail.recipient)
+	);
+
+	std::uint16_t value;
+	memcpy(&value, recipient.data(), sizeof(value));
+
+	QMetaObject::invokeMethod(
+		qt_pointers.recipient_bar,
+		"set_name",
+		Qt::QueuedConnection,
+		Q_ARG(QVariant, QString::fromUtf8(namer::get_name(value)))
+	);
+
+}
 #pragma endregion
 
 
@@ -263,7 +289,7 @@ void mydak::client::qt_add_sender_message(const std::string_view message) const 
 	if (message_size < proto::MIN_MESSAGE_SIZE || message_size > proto::MAX_MESSAGE_SIZE) return;
 
 	QMetaObject::invokeMethod(
-		qt_pointers.messages_rectangle,
+		qt_pointers.messages_column,
 		"add_message",
 		Qt::QueuedConnection,
 		Q_ARG(QVariant, QString::fromUtf8(message.data(), message_size)),
@@ -276,11 +302,35 @@ void mydak::client::qt_add_recipient_message(const std::string_view message) con
 	if (message_size < proto::MIN_MESSAGE_SIZE || message_size > proto::MAX_MESSAGE_SIZE) return;
 
 	QMetaObject::invokeMethod(
-		qt_pointers.messages_rectangle,
+		qt_pointers.messages_column,
 		"add_message",
 		Qt::QueuedConnection,
 		Q_ARG(QVariant, QString::fromUtf8(message.data(), message_size)),
 		Q_ARG(QVariant, 1)
+	);
+}
+
+void mydak::client::qt_set_user_name(const std::string_view name) const {
+	const std::size_t string_size = std::size(name);
+	if (string_size < 1) return;
+
+	QMetaObject::invokeMethod(
+		qt_pointers.user_bar,
+		"set_user_name",
+		Qt::QueuedConnection,
+		Q_ARG(QVariant, QString::fromUtf8(name.data(), string_size))
+	);
+}
+
+void mydak::client::qt_set_user_icon(const std::string_view icon) const {
+	const std::size_t string_size = std::size(icon);
+	if (string_size != 4) return;
+
+	QMetaObject::invokeMethod(
+		qt_pointers.user_bar,
+		"set_user_icon",
+		Qt::QueuedConnection,
+		Q_ARG(QVariant, QString::fromUtf8(icon.data(), string_size))
 	);
 }
 #pragma endregion

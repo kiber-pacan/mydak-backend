@@ -8,7 +8,6 @@
 
 #include "identity.hpp"
 #include "namer.hpp"
-#include "parameters.hpp"
 #include "parameters_accessor.hpp"
 #include "qt_ptrs.hpp"
 #include "toml++/toml.h"
@@ -33,53 +32,23 @@ namespace mydak {
 	struct client : std::enable_shared_from_this<client> {
 		client(
 			asio::io_context& io,
-			const char*&& ip,
-			const char*&& port,
 			const qt_ptrs& qt_pointers,
-			int argc,
-			char* argv[]
+			args::parameters_accessor& parameters
 		) : io(io),
-			ip(ip),
-			port(port),
+			ip(parameters.get<"--ip">()),
+			port(parameters.get<"--port">()),
+			parameters(parameters),
 			qt_pointers(qt_pointers)
 		{
-			auto p = args::parameters_accessor(argc, argv);
-			auto d = p.get<"--connect_tries">();
-			set_parameters(
-				p,
-				connect_tries,
-				wait_time,
-				wait_time_add,
-				recipient_hex,
-				login,
-				password
-			);
-
-
-			// TODO REWORK THIS PIECE OF SHIT
-			// KEYPAIR START
-			id = identity(login, password);
-			if (std::size(recipient_hex) > 0) {
-				auto recipient_bin = tools::hex2bin(recipient_hex);
+			id = identity(parameters.get<"--login">(), parameters.get<"--password">());
+			if (const auto recipient = parameters.get<"--recipient">(); std::size(recipient) > 0) {
+				const auto recipient_bin = tools::hex2bin(recipient);
 				set_recipient(recipient_bin);
 			}
-			// KEYPAIR END
 
-
-		}
-
-		// I think it's just easier to do this shit
-		template<typename... T>
-		static void set_parameters(const args::parameters_accessor parameters_accessor, T&... parameters) {
-			tools::constexpr_for<args::parameters_count>(
-				[&] (auto index) {
-					parameters...[index] = parameters_accessor.get<index>();
-				}
-			);
-		}
-
-		static void load_keypair(std::string_view private_key_path) {
-			toml::table keypair;
+			// Qt user_rectangle
+			qt_set_user_name(namer::get_name(id.public_key_value));
+			qt_set_user_icon(namer::get_icon(id.public_key_value));
 		}
 
 		#pragma region Main
@@ -91,30 +60,22 @@ namespace mydak {
 
 		void send_message(const std::string& message);
 
-		void set_recipient(const std::vector<unsigned char>& recipient) {
-			memcpy(
-				client_detail.recipient.data(),
-				recipient.data(),
-				std::size(client_detail.recipient)
-			);
+		void set_recipient(const void* ptr);
 
-			std::uint16_t value;
-			memcpy(&value, recipient.data(), sizeof(value));
-
-			QMetaObject::invokeMethod(
-				qt_pointers.recipient_rectangle,
-				"set_name",
-				Qt::QueuedConnection,
-				Q_ARG(QVariant, QString::fromUtf8(namer::get_name(value)))
-			);
-
-		}
+		void set_recipient(const std::vector<unsigned char>& recipient);
 		#pragma endregion
 
 		#pragma region Qt
+		// Messages
 		void qt_add_sender_message(std::string_view message) const;
 
 		void qt_add_recipient_message(std::string_view message) const;
+
+
+		// User rectangle
+		void qt_set_user_name(std::string_view name) const;
+
+		void qt_set_user_icon(std::string_view icon) const;
 		#pragma endregion
 
 		// VARIABLES	
@@ -123,17 +84,16 @@ namespace mydak {
 		asio::io_context& io;
 		std::shared_ptr<asio::ip::tcp::socket> socket;
 
-		std::string ip, port;
+		std::string ip;
+		std::uint16_t port;
 
-		std::int8_t connect_tries{};
-		std::int8_t wait_time{};
-		std::int8_t wait_time_add{};
+		args::parameters_accessor& parameters;
 
-		std::string recipient_hex{};
+		//std::string recipient_hex{};
 
 		identity id;
-		std::string login{};
-		std::string_view password{};
+		//std::string login{};
+		//std::string_view password{};
 
 		// QT
 		qt_ptrs qt_pointers;
