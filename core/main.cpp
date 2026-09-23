@@ -56,7 +56,7 @@ namespace mydak {
 		const auto main = app_engine.rootObjects().constFirst();
 
 		// QT PTRS
-		qt_pointers.messages_column = main->findChild<QObject*>("messages_column");
+		qt_pointers.dialog_rectangle = main->findChild<QObject*>("dialog_rectangle");
 		qt_pointers.recipient_bar = main->findChild<QObject*>("recipient_bar");
 		qt_pointers.user_bar = main->findChild<QObject*>("user_bar");
 

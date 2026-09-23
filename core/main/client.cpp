@@ -154,8 +154,8 @@ asio::awaitable<void> mydak::client::send_loop() {
 				if (message_raw[0] == '/') {
 					if (message_raw[1] == 'r' && message_raw[2] == ' ') {
 						if (sodium_hex2bin(
-							client_detail.recipient.data(),
-							std::size(client_detail.recipient),
+							client_detail.current_recipient.data(),
+							std::size(client_detail.current_recipient),
 							message_raw.data() + 3,
 							std::size(message_raw) - 3, nullptr, nullptr, nullptr // length of {/r }
 						) != 0) {
@@ -171,7 +171,7 @@ asio::awaitable<void> mydak::client::send_loop() {
 				}
 
 				// SET YOUR FUCKING RECIPIENT YOU STUPID WHORE
-				if (client_detail.recipient.empty()) {
+				if (client_detail.current_recipient.empty()) {
 					logger::log_error("No recipient provided. /r <RECIPIENT>");
 					continue;
 				}
@@ -182,7 +182,7 @@ asio::awaitable<void> mydak::client::send_loop() {
 
 				// Compress and encrypt message
 				// Compressing -> encoding
-				const auto processed_message = id.encode_message(client_detail.recipient, brotli::compress(message_raw));
+				const auto processed_message = id.encode_message(client_detail.current_recipient, brotli::compress(message_raw));
 				//const auto processed_message = brotli::compress(message_raw);
 
 
@@ -219,7 +219,7 @@ asio::awaitable<void> mydak::client::send_loop() {
 				// GREETINGS
 				co_await asio::async_write(*socket, asio::buffer(prefix), asio::use_awaitable);
 				co_await asio::async_write(*socket, asio::buffer(size_array), asio::use_awaitable);
-				co_await asio::async_write(*socket, asio::buffer(client_detail.recipient), asio::use_awaitable);
+				co_await asio::async_write(*socket, asio::buffer(client_detail.current_recipient), asio::use_awaitable);
 
 				// MESSAGE
 				co_await asio::async_write(*socket, asio::buffer(processed_message), asio::use_awaitable);
@@ -246,9 +246,9 @@ void mydak::client::send_message(const std::string& message) {
 
 void mydak::client::set_recipient(const void* ptr) {
 	memcpy(
-		client_detail.recipient.data(),
+		client_detail.current_recipient.data(),
 		ptr,
-		std::size(client_detail.recipient)
+		std::size(client_detail.current_recipient)
 	);
 
 	std::uint16_t value;
@@ -264,9 +264,9 @@ void mydak::client::set_recipient(const void* ptr) {
 
 void mydak::client::set_recipient(const std::vector<unsigned char>& recipient) {
 	memcpy(
-		client_detail.recipient.data(),
+		client_detail.current_recipient.data(),
 		recipient.data(),
-		std::size(client_detail.recipient)
+		std::size(client_detail.current_recipient)
 	);
 
 	std::uint16_t value;
@@ -289,7 +289,7 @@ void mydak::client::qt_add_sender_message(const std::string_view message) const 
 	if (message_size < proto::MIN_MESSAGE_SIZE || message_size > proto::MAX_MESSAGE_SIZE) return;
 
 	QMetaObject::invokeMethod(
-		qt_pointers.messages_column,
+		qt_pointers.dialog_rectangle,
 		"add_message",
 		Qt::QueuedConnection,
 		Q_ARG(QVariant, QString::fromUtf8(message.data(), message_size)),
@@ -302,7 +302,7 @@ void mydak::client::qt_add_recipient_message(const std::string_view message) con
 	if (message_size < proto::MIN_MESSAGE_SIZE || message_size > proto::MAX_MESSAGE_SIZE) return;
 
 	QMetaObject::invokeMethod(
-		qt_pointers.messages_column,
+		qt_pointers.dialog_rectangle,
 		"add_message",
 		Qt::QueuedConnection,
 		Q_ARG(QVariant, QString::fromUtf8(message.data(), message_size)),

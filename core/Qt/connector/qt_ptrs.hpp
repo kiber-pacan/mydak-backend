@@ -15,7 +15,7 @@ namespace mydak {
         qt_ptrs() = default;
         qt_ptrs(const qt_ptrs& connector) = default;
 
-        QObject* messages_column{};
+        QObject* dialog_rectangle{};
         QObject* recipient_bar{};
         QObject* user_bar{};
         QGuiApplication* app{};

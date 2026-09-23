@@ -73,9 +73,9 @@ ApplicationWindow {
                 anchors.top: parent.top
             }
 
-            MessagesColumn {
-                id: messages_column
-                objectName: "messages_column"
+            DialogRectangle {
+                id: dialog_rectangle
+                objectName: "dialog_rectangle"
 
                 width: parent.width
                 height: parent.height - input_bar.height - recipient_bar.height

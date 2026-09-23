@@ -6,6 +6,7 @@
 #include <boost/asio/experimental/channel.hpp>
 #include <queue>
 
+#include "dialog.hpp"
 #include "identity.hpp"
 #include "namer.hpp"
 #include "parameters_accessor.hpp"
@@ -26,8 +27,8 @@ namespace mydak {
 
 		std::queue<std::string> messages_queue{};
 
-		std::array<unsigned char, proto::E2E_KEYS_RAW_L> recipient{};
-
+		std::array<unsigned char, proto::E2E_KEYS_RAW_L> current_recipient{};
+		std::size_t recipient_index{};
 	};
 	struct client : std::enable_shared_from_this<client> {
 		client(
@@ -49,6 +50,8 @@ namespace mydak {
 			// Qt user_rectangle
 			qt_set_user_name(namer::get_name(id.public_key_value));
 			qt_set_user_icon(namer::get_icon(id.public_key_value));
+
+			//dialogs.emplace_back(dialog())
 		}
 
 		#pragma region Main
@@ -89,11 +92,8 @@ namespace mydak {
 
 		args::parameters_accessor& parameters;
 
-		//std::string recipient_hex{};
-
 		identity id;
-		//std::string login{};
-		//std::string_view password{};
+		std::unordered_map<std::array<unsigned char, proto::E2E_KEYS_RAW_L>, dialog> dialogs;
 
 		// QT
 		qt_ptrs qt_pointers;
