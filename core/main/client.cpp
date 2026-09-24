@@ -51,8 +51,8 @@ asio::awaitable<void> mydak::client::initialize(const int current_try) {
 		logger::log_debug("Connected!");
 
 		// Creating channels
-		client_detail.send_channel_ptr = std::make_shared<signal_channel>(socket->get_executor());
-		client_detail.receive_channel_ptr = std::make_shared<signal_channel>(socket->get_executor());
+		detail.send_channel_ptr = std::make_shared<signal_channel>(socket->get_executor());
+		detail.receive_channel_ptr = std::make_shared<signal_channel>(socket->get_executor());
 	}
 	catch (const boost::system::system_error& e) {
 		logger::exception_func(e);
@@ -72,7 +72,7 @@ asio::awaitable<void> mydak::client::initialize(const int current_try) {
 }
 
 // Receive messages from the server loop
-asio::awaitable<void> mydak::client::receive_loop() const {
+asio::awaitable<void> mydak::client::receive_loop() {
 	try {
 		for (;;)  {
 			// [message size][public key]
@@ -128,7 +128,8 @@ asio::awaitable<void> mydak::client::receive_loop() const {
 			std::string formatted = std::format("{}{}", gap, message_view);
 			logger::log(std::format("{} : {}", namer::get_name(id.public_key_value), formatted));
 
-			qt_add_recipient_message(message_view);
+			add_message(detail.current_recipient, message_view, message_type::recipient);
+			//qt.qt_add_recipient_message(message_view);
 		}
 	} catch (const std::exception& e) {
 		logger::log_func_error(e.what());
@@ -145,17 +146,17 @@ asio::awaitable<void> mydak::client::send_loop() {
 
 		// Main loop
 		for (;;) {
-			co_await client_detail.send_channel_ptr->async_receive(asio::use_awaitable);
+			co_await detail.send_channel_ptr->async_receive(asio::use_awaitable);
 
-			for (; not client_detail.messages_queue.empty(); client_detail.messages_queue.pop()) {
-				std::string& message_raw = client_detail.messages_queue.front();
+			for (; not detail.messages_queue.empty(); detail.messages_queue.pop()) {
+				std::string& message_raw = detail.messages_queue.front();
 
 				#pragma region Command parser
 				if (message_raw[0] == '/') {
 					if (message_raw[1] == 'r' && message_raw[2] == ' ') {
 						if (sodium_hex2bin(
-							client_detail.current_recipient.data(),
-							std::size(client_detail.current_recipient),
+							detail.current_recipient.data(),
+							std::size(detail.current_recipient),
 							message_raw.data() + 3,
 							std::size(message_raw) - 3, nullptr, nullptr, nullptr // length of {/r }
 						) != 0) {
@@ -171,7 +172,7 @@ asio::awaitable<void> mydak::client::send_loop() {
 				}
 
 				// SET YOUR FUCKING RECIPIENT YOU STUPID WHORE
-				if (client_detail.current_recipient.empty()) {
+				if (detail.current_recipient.empty()) {
 					logger::log_error("No recipient provided. /r <RECIPIENT>");
 					continue;
 				}
@@ -182,7 +183,7 @@ asio::awaitable<void> mydak::client::send_loop() {
 
 				// Compress and encrypt message
 				// Compressing -> encoding
-				const auto processed_message = id.encode_message(client_detail.current_recipient, brotli::compress(message_raw));
+				const auto processed_message = id.encode_message(detail.current_recipient, brotli::compress(message_raw));
 				//const auto processed_message = brotli::compress(message_raw);
 
 
@@ -219,13 +220,14 @@ asio::awaitable<void> mydak::client::send_loop() {
 				// GREETINGS
 				co_await asio::async_write(*socket, asio::buffer(prefix), asio::use_awaitable);
 				co_await asio::async_write(*socket, asio::buffer(size_array), asio::use_awaitable);
-				co_await asio::async_write(*socket, asio::buffer(client_detail.current_recipient), asio::use_awaitable);
+				co_await asio::async_write(*socket, asio::buffer(detail.current_recipient), asio::use_awaitable);
 
 				// MESSAGE
 				co_await asio::async_write(*socket, asio::buffer(processed_message), asio::use_awaitable);
 				#pragma endregion
 
-				qt_add_sender_message(message_raw);
+				add_message(detail.current_recipient, message_raw, message_type::sender);
+				//qt.qt_add_sender_message(message_raw);
 			}
 		}
 	} catch (const std::exception& e) {
@@ -235,56 +237,67 @@ asio::awaitable<void> mydak::client::send_loop() {
 	co_return;
 }
 
-void mydak::client::send_message(const std::string& message) {
+void mydak::client::send_message(std::string_view message) {
 	// Add message to the queue
-	client_detail.messages_queue.emplace(message);
+	detail.messages_queue.emplace(message);
 
 	// Notify client about change
 	boost::system::error_code e;
-	client_detail.send_channel_ptr->try_send(e);
+	detail.send_channel_ptr->try_send(e);
 }
 
 void mydak::client::set_recipient(const void* ptr) {
 	memcpy(
-		client_detail.current_recipient.data(),
+		detail.current_recipient.data(),
 		ptr,
-		std::size(client_detail.current_recipient)
+		std::size(detail.current_recipient)
 	);
 
 	std::uint16_t value;
 	memcpy(&value, ptr, sizeof(value));
 
 	QMetaObject::invokeMethod(
-		qt_pointers.recipient_bar,
+		qt.qt_pointers.recipient_bar,
 		"set_name",
 		Qt::QueuedConnection,
 		Q_ARG(QVariant, QString::fromUtf8(namer::get_name(value)))
 	);
 }
 
-void mydak::client::set_recipient(const std::vector<unsigned char>& recipient) {
-	memcpy(
-		client_detail.current_recipient.data(),
-		recipient.data(),
-		std::size(client_detail.current_recipient)
-	);
+void mydak::client::add_dialog(const std::array<unsigned char, proto::E2E_KEYS_RAW_L>& recipient) {
+	const auto it = detail.dialogs.find(recipient);
+	// In emplace call the first argument is key and the second is argument for passing it into
+	// the dialog constructor
+	if (it == detail.dialogs.end()) detail.dialogs.emplace(recipient, recipient);
+	logger::log_func_debug("Added dialog");
+}
 
-	std::uint16_t value;
-	memcpy(&value, recipient.data(), sizeof(value));
+void mydak::client::add_message(
+	const std::array<unsigned char, proto::E2E_KEYS_RAW_L>& recipient,
+	const std::string_view message,
+	const message_type type
+) {
+	const auto it = detail.dialogs.find(recipient);
+	if (it == detail.dialogs.end()) return;
+	auto& dialog = it->second;
 
-	QMetaObject::invokeMethod(
-		qt_pointers.recipient_bar,
-		"set_name",
-		Qt::QueuedConnection,
-		Q_ARG(QVariant, QString::fromUtf8(namer::get_name(value)))
-	);
-
+	dialog.add_message(message);
+	switch (type) {
+		case message_type::sender: {
+			qt.qt_add_sender_message(message);
+			break;
+		}
+		case message_type::recipient: {
+			qt.qt_add_recipient_message(message);
+			break;
+		}
+	}
 }
 #pragma endregion
 
 
 #pragma region Qt
-void mydak::client::qt_add_sender_message(const std::string_view message) const {
+void mydak::qt_handler::qt_add_sender_message(const std::string_view message) const {
 	const std::size_t message_size = std::size(message);
 	if (message_size < proto::MIN_MESSAGE_SIZE || message_size > proto::MAX_MESSAGE_SIZE) return;
 
@@ -297,7 +310,7 @@ void mydak::client::qt_add_sender_message(const std::string_view message) const 
 	);
 }
 
-void mydak::client::qt_add_recipient_message(const std::string_view message) const {
+void mydak::qt_handler::qt_add_recipient_message(const std::string_view message) const {
 	const std::size_t message_size = std::size(message);
 	if (message_size < proto::MIN_MESSAGE_SIZE || message_size > proto::MAX_MESSAGE_SIZE) return;
 
@@ -310,7 +323,7 @@ void mydak::client::qt_add_recipient_message(const std::string_view message) con
 	);
 }
 
-void mydak::client::qt_set_user_name(const std::string_view name) const {
+void mydak::qt_handler::qt_set_user_name(const std::string_view name) const {
 	const std::size_t string_size = std::size(name);
 	if (string_size < 1) return;
 
@@ -322,7 +335,7 @@ void mydak::client::qt_set_user_name(const std::string_view name) const {
 	);
 }
 
-void mydak::client::qt_set_user_icon(const std::string_view icon) const {
+void mydak::qt_handler::qt_set_user_icon(const std::string_view icon) const {
 	const std::size_t string_size = std::size(icon);
 	if (string_size != 4) return;
 

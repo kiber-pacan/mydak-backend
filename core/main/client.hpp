@@ -28,47 +28,11 @@ namespace mydak {
 		std::queue<std::string> messages_queue{};
 
 		std::array<unsigned char, proto::E2E_KEYS_RAW_L> current_recipient{};
-		std::size_t recipient_index{};
+		std::unordered_map<std::array<unsigned char, proto::E2E_KEYS_RAW_L>,
+						   dialog, tools::char_array_hasher> dialogs;
 	};
-	struct client : std::enable_shared_from_this<client> {
-		client(
-			asio::io_context& io,
-			const qt_ptrs& qt_pointers,
-			args::parameters_accessor& parameters
-		) : io(io),
-			ip(parameters.get<"--ip">()),
-			port(parameters.get<"--port">()),
-			parameters(parameters),
-			qt_pointers(qt_pointers)
-		{
-			id = identity(parameters.get<"--login">(), parameters.get<"--password">());
-			if (const auto recipient = parameters.get<"--recipient">(); std::size(recipient) > 0) {
-				const auto recipient_bin = tools::hex2bin(recipient);
-				set_recipient(recipient_bin);
-			}
 
-			// Qt user_rectangle
-			qt_set_user_name(namer::get_name(id.public_key_value));
-			qt_set_user_icon(namer::get_icon(id.public_key_value));
-
-			//dialogs.emplace_back(dialog())
-		}
-
-		#pragma region Main
-		asio::awaitable<void> initialize(int current_try);
- 
-		asio::awaitable<void> receive_loop() const;
-
-		asio::awaitable<void> send_loop();
-
-		void send_message(const std::string& message);
-
-		void set_recipient(const void* ptr);
-
-		void set_recipient(const std::vector<unsigned char>& recipient);
-		#pragma endregion
-
-		#pragma region Qt
+	struct qt_handler {
 		// Messages
 		void qt_add_sender_message(std::string_view message) const;
 
@@ -79,7 +43,62 @@ namespace mydak {
 		void qt_set_user_name(std::string_view name) const;
 
 		void qt_set_user_icon(std::string_view icon) const;
+
+		qt_ptrs qt_pointers;
+	};
+
+	struct client : std::enable_shared_from_this<client> {
+		client(
+			asio::io_context& io,
+			const qt_ptrs& qt_pointers,
+			args::parameters_accessor& parameters
+		) : io(io),
+			ip(parameters.get<"--ip">()),
+			port(parameters.get<"--port">()),
+			parameters(parameters)
+		{
+			id = identity(parameters.get<"--login">(), parameters.get<"--password">());
+			if (const auto recipient = parameters.get<"--recipient">(); std::size(recipient) > 0) {
+				const auto recipient_bin = tools::hex2bin(recipient);
+				set_recipient(recipient_bin.data());
+			}
+
+			// Qt
+			qt.qt_pointers = qt_ptrs(qt_pointers);
+			qt.qt_set_user_name(namer::get_name(id.public_key_value));
+			qt.qt_set_user_icon(namer::get_icon(id.public_key_value));
+
+			if (!detail.current_recipient.empty()) {
+				add_dialog(detail.current_recipient);
+			}
+		}
+
+		#pragma region Main
+		asio::awaitable<void> initialize(int current_try);
+ 
+		asio::awaitable<void> receive_loop();
+
+		asio::awaitable<void> send_loop();
+
+		void send_message(std::string_view message);
+
+		void set_recipient(const void* ptr);
+
+		void add_dialog(const std::array<unsigned char, proto::E2E_KEYS_RAW_L>& recipient);
+
+		enum class message_type {
+			sender,
+			recipient
+		};
+
+		void add_message(
+			const std::array<unsigned char, proto::E2E_KEYS_RAW_L>& recipient,
+			std::string_view message,
+			message_type type
+		);
 		#pragma endregion
+
+
 
 		// VARIABLES	
 		std::shared_ptr<asio::io_context> websocket_io;
@@ -93,12 +112,9 @@ namespace mydak {
 		args::parameters_accessor& parameters;
 
 		identity id;
-		std::unordered_map<std::array<unsigned char, proto::E2E_KEYS_RAW_L>, dialog> dialogs;
 
-		// QT
-		qt_ptrs qt_pointers;
-
-		client_detail client_detail;
+		qt_handler qt;
+		client_detail detail;
 	};
 }
 
