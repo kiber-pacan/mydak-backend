@@ -14,6 +14,7 @@
 #include "toml++/toml.h"
 
 
+enum class message_type;
 class QObject;
 namespace asio = boost::asio;
 
@@ -27,7 +28,7 @@ namespace mydak {
 
 		std::queue<std::string> messages_queue{};
 
-		std::array<unsigned char, proto::E2E_KEYS_RAW_L> current_recipient{};
+		std::array<unsigned char, proto::E2E_KEYS_RAW_L> current_client{};
 		std::unordered_map<std::array<unsigned char, proto::E2E_KEYS_RAW_L>,
 						   dialog, tools::char_array_hasher> dialogs;
 	};
@@ -44,6 +45,11 @@ namespace mydak {
 
 		void qt_set_user_icon(std::string_view icon) const;
 
+		void qt_clear_messages() const;
+
+		// Dialogs
+		void qt_add_dialog(std::string_view name) const;
+
 		qt_ptrs qt_pointers;
 	};
 
@@ -59,7 +65,8 @@ namespace mydak {
 		{
 			id = identity(parameters.get<"--login">(), parameters.get<"--password">());
 			if (const auto recipient = parameters.get<"--recipient">(); std::size(recipient) > 0) {
-				const auto recipient_bin = tools::hex2bin(recipient);
+				std::array<char, proto::E2E_KEYS_RAW_L> recipient_bin; // NOLINT(*-pro-type-member-init)
+				tools::hex2bin(recipient, recipient_bin.data(), std::size(recipient_bin));
 				set_recipient(recipient_bin.data());
 			}
 
@@ -68,10 +75,14 @@ namespace mydak {
 			qt.qt_set_user_name(namer::get_name(id.public_key_value));
 			qt.qt_set_user_icon(namer::get_icon(id.public_key_value));
 
-			if (!detail.current_recipient.empty()) {
-				add_dialog(detail.current_recipient);
+			if (!detail.current_client.empty()) {
+				add_dialog(detail.current_client);
 			}
+
+			load_dialogs();
 		}
+
+
 
 		#pragma region Main
 		asio::awaitable<void> initialize(int current_try);
@@ -86,16 +97,15 @@ namespace mydak {
 
 		void add_dialog(const std::array<unsigned char, proto::E2E_KEYS_RAW_L>& recipient);
 
-		enum class message_type {
-			sender,
-			recipient
-		};
-
 		void add_message(
-			const std::array<unsigned char, proto::E2E_KEYS_RAW_L>& recipient,
+			const std::array<unsigned char, proto::E2E_KEYS_RAW_L>& sender,
 			std::string_view message,
 			message_type type
 		);
+
+		void save_dialogs();
+
+		void load_dialogs();
 		#pragma endregion
 
 

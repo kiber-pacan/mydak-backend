@@ -7,12 +7,12 @@ Rectangle {
 
     color: "#303030"
 
-    Message_model {
-        id: messages
+    Dialog_model {
+        id: dialogs
     }
 
-    function add_message(message, type) {
-        messages.add_message(message, type)
+    function add_dialog(name) {
+        dialogs.add_dialog(name)
     }
 
     //function append_messages(messages) {
@@ -20,11 +20,11 @@ Rectangle {
     //}
 
     function clear() {
-        messages.clear()
+        dialogs.clear()
     }
 
     ListView {
-        model: messages
+        model: dialogs
 
         width: parent.width
         height: parent.height
@@ -35,14 +35,14 @@ Rectangle {
         clip: true
 
         delegate: Rectangle {
-            id: message_field
+            id: dialog_field
             color: "#303030"
 
             width: ListView.view.width
-            height: message_rectangle.height + 4
+            height: dialog_rectangle.height + 4
 
             Rectangle {
-                id: message_rectangle
+                id: dialog_rectangle
 
                 color: "#202020"
 
@@ -50,20 +50,18 @@ Rectangle {
                 property int radius_p: 16
                 topLeftRadius: radius_p
                 topRightRadius: radius_p
+                bottomLeftRadius: radius_p
+                bottomRightRadius: radius_p
 
-                bottomLeftRadius: (model.type === 0) ? radius_p : 0
-                bottomRightRadius: (model.type === 1) ? radius_p : 0
-
-                anchors.right: (model.type === 0) ? parent.right : undefined
-                anchors.left: (model.type === 1) ? parent.left : undefined
+                anchors.left: parent.left
 
                 property int margin: 20
-                width: message_text.width + margin
-                height: message_text.height + margin
+                width: dialog_text.width + margin
+                height: dialog_text.height + margin
 
                 Text {
-                    text: model.message
-                    id: message_text
+                    text: model.name
+                    id: dialog_text
 
                     color: "#ffffff"
 

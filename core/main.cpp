@@ -36,7 +36,7 @@ namespace mydak {
 
 	static int qt_initialization(
 		int argc, char* argv[],
-		qt_ptrs& qt_pointers, std::promise<void>& qt_signal_promise
+		qt_ptrs& qt_pointers, std::promise<void>& qt_signal, std::promise<void>& client_signal, client*& client_ptr
 	) {
 		QGuiApplication app(argc, argv);
 
@@ -57,14 +57,19 @@ namespace mydak {
 
 		// QT PTRS
 		qt_pointers.dialog_rectangle = main->findChild<QObject*>("dialog_rectangle");
+		qt_pointers.dialog_selector = main->findChild<QObject*>("dialog_selector");
 		qt_pointers.recipient_bar = main->findChild<QObject*>("recipient_bar");
 		qt_pointers.user_bar = main->findChild<QObject*>("user_bar");
 
 		qt_pointers.app = &app;
 		qt_pointers.app_engine = &app_engine;
-		qt_signal_promise.set_value();
+
+		// Signals
+		qt_signal.set_value();
+		client_signal.get_future().get();
 
 		QGuiApplication::exec();
+		client_ptr->save_dialogs();
 		std::fflush(stdout);
 		std::_Exit(EXIT_SUCCESS);
 	}
@@ -76,10 +81,13 @@ int main(int argc, char* argv[]) {
 	if (sodium_init() != 0)
 		throw std::runtime_error("Failed to init sodium!");
 
+	mydak::client* client_ptr;
+
 	#pragma region QT
 	mydak::qt_ptrs qt_pointers;
 	std::promise<void> qt_signal;
-	std::thread qt_thread(mydak::qt_initialization, argc, argv, std::ref(qt_pointers), std::ref(qt_signal));
+	std::promise<void> client_signal;
+	std::thread qt_thread(mydak::qt_initialization, argc, argv, std::ref(qt_pointers), std::ref(qt_signal), std::ref(client_signal), std::ref(client_ptr));
 	qt_signal.get_future().get(); // Wait for qt_thread to get all the refs
 
 	qt_thread.detach();
@@ -88,6 +96,8 @@ int main(int argc, char* argv[]) {
 	auto& io = mydak::coh::io();
 	mydak::args::parameters_accessor parameters(argc, argv);
 	mydak::client client(io, qt_pointers, parameters);
+	client_ptr = &client;
+	client_signal.set_value();
 
 	// Qt late init
 	mydak::qt_connector connector(client);

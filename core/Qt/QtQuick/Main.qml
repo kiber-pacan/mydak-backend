@@ -32,6 +32,16 @@ ApplicationWindow {
                 objectName: "user_bar"
             }
 
+            DialogSelector {
+                width: parent.width
+                height: parent.height - root.bar_height * 2
+
+                anchors.centerIn: parent
+
+                id: dialog_selector
+                objectName: "dialog_selector"
+            }
+
             LogoBar_Bottom {
                 width: parent.width
                 height: root.bar_height

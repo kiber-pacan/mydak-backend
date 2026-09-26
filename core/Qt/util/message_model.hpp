@@ -10,7 +10,6 @@
 #include <qabstractitemmodel.h>
 #include <qqmlintegration.h>
 
-
 namespace mydak {
     struct message_obj {
         message_obj(QString message, const std::uint8_t type)
@@ -31,6 +30,8 @@ namespace mydak {
         [[nodiscard]] QHash<int, QByteArray> roleNames() const override;
 
         Q_INVOKABLE void add_message(const QString &message, uint8_t type);
+        //Q_INVOKABLE void append_messages(const std::vector<std::pair<std::string, message_type>> &message, uint8_t type);
+        Q_INVOKABLE void clear();
     private:
         QList<message_obj> messages;
     };

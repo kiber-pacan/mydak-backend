@@ -10,6 +10,8 @@
 #include <string>
 #include <vector>
 
+#include "message_type.hpp"
+
 
 namespace mydak {
     struct dialog {
@@ -19,20 +21,20 @@ namespace mydak {
             const std::array<unsigned char, proto::E2E_KEYS_RAW_L> &recipient
         ) : recipient(recipient) {}
 
-        void add_message(std::string_view message) {
-            messages.emplace_back(message);
+        void add_message(std::string_view message, message_type type) {
+            messages.emplace_back(message, type);
         }
 
-        auto& get_recipient() {
+        [[nodiscard]] auto& get_recipient() const  {
             return recipient;
         }
 
-        auto& get_messages() {
+        [[nodiscard]] auto& get_messages() const {
             return messages;
         }
     private:
         std::array<unsigned char, proto::E2E_KEYS_RAW_L> recipient;
-        std::vector<std::string> messages{};
+        std::vector<std::pair<std::string, message_type>> messages{};
     };
 }
 

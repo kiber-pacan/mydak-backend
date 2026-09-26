@@ -28,7 +28,20 @@ QHash<int, QByteArray> mydak::Message_model::roleNames() const {
 }
 
 Q_INVOKABLE void mydak::Message_model::add_message(const QString& message, std::uint8_t type) {
-    beginInsertRows({}, std::size(messages), std::size(messages));
+    beginInsertRows({}, static_cast<int>(std::size(messages)), static_cast<int>(std::size(messages)));
     messages.append({message, type});
     endInsertRows();
+}
+
+//Q_INVOKABLE void append_messages(const std::vector<std::pair<std::string, message_type>> &message, uint8_t type) {
+
+//}
+
+
+Q_INVOKABLE void mydak::Message_model::clear() {
+    if (messages.isEmpty()) return;
+
+    beginResetModel();
+    messages.clear();
+    endResetModel();
 }

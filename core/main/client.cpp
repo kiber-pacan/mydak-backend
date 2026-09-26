@@ -128,8 +128,7 @@ asio::awaitable<void> mydak::client::receive_loop() {
 			std::string formatted = std::format("{}{}", gap, message_view);
 			logger::log(std::format("{} : {}", namer::get_name(id.public_key_value), formatted));
 
-			add_message(detail.current_recipient, message_view, message_type::recipient);
-			//qt.qt_add_recipient_message(message_view);
+			add_message(sender_public_key, message_view, message_type::recipient);
 		}
 	} catch (const std::exception& e) {
 		logger::log_func_error(e.what());
@@ -155,8 +154,8 @@ asio::awaitable<void> mydak::client::send_loop() {
 				if (message_raw[0] == '/') {
 					if (message_raw[1] == 'r' && message_raw[2] == ' ') {
 						if (sodium_hex2bin(
-							detail.current_recipient.data(),
-							std::size(detail.current_recipient),
+							detail.current_client.data(),
+							std::size(detail.current_client),
 							message_raw.data() + 3,
 							std::size(message_raw) - 3, nullptr, nullptr, nullptr // length of {/r }
 						) != 0) {
@@ -172,7 +171,7 @@ asio::awaitable<void> mydak::client::send_loop() {
 				}
 
 				// SET YOUR FUCKING RECIPIENT YOU STUPID WHORE
-				if (detail.current_recipient.empty()) {
+				if (detail.current_client.empty()) {
 					logger::log_error("No recipient provided. /r <RECIPIENT>");
 					continue;
 				}
@@ -183,7 +182,7 @@ asio::awaitable<void> mydak::client::send_loop() {
 
 				// Compress and encrypt message
 				// Compressing -> encoding
-				const auto processed_message = id.encode_message(detail.current_recipient, brotli::compress(message_raw));
+				const auto processed_message = id.encode_message(detail.current_client, brotli::compress(message_raw));
 				//const auto processed_message = brotli::compress(message_raw);
 
 
@@ -220,14 +219,13 @@ asio::awaitable<void> mydak::client::send_loop() {
 				// GREETINGS
 				co_await asio::async_write(*socket, asio::buffer(prefix), asio::use_awaitable);
 				co_await asio::async_write(*socket, asio::buffer(size_array), asio::use_awaitable);
-				co_await asio::async_write(*socket, asio::buffer(detail.current_recipient), asio::use_awaitable);
+				co_await asio::async_write(*socket, asio::buffer(detail.current_client), asio::use_awaitable);
 
 				// MESSAGE
 				co_await asio::async_write(*socket, asio::buffer(processed_message), asio::use_awaitable);
 				#pragma endregion
 
-				add_message(detail.current_recipient, message_raw, message_type::sender);
-				//qt.qt_add_sender_message(message_raw);
+				add_message(detail.current_client, message_raw, message_type::sender);
 			}
 		}
 	} catch (const std::exception& e) {
@@ -248,9 +246,9 @@ void mydak::client::send_message(std::string_view message) {
 
 void mydak::client::set_recipient(const void* ptr) {
 	memcpy(
-		detail.current_recipient.data(),
+		detail.current_client.data(),
 		ptr,
-		std::size(detail.current_recipient)
+		std::size(detail.current_client)
 	);
 
 	std::uint16_t value;
@@ -269,19 +267,26 @@ void mydak::client::add_dialog(const std::array<unsigned char, proto::E2E_KEYS_R
 	// In emplace call the first argument is key and the second is argument for passing it into
 	// the dialog constructor
 	if (it == detail.dialogs.end()) detail.dialogs.emplace(recipient, recipient);
+
+	qt.qt_add_dialog(tools::bin2hex_string(recipient));
+
 	logger::log_func_debug("Added dialog");
 }
 
 void mydak::client::add_message(
-	const std::array<unsigned char, proto::E2E_KEYS_RAW_L>& recipient,
+	const std::array<unsigned char, proto::E2E_KEYS_RAW_L>& sender,
 	const std::string_view message,
 	const message_type type
 ) {
-	const auto it = detail.dialogs.find(recipient);
+	const auto it = detail.dialogs.find(sender);
 	if (it == detail.dialogs.end()) return;
 	auto& dialog = it->second;
 
-	dialog.add_message(message);
+	dialog.add_message(message, type);
+	// We wont add message to the display if current dialog is not
+	// with sender
+	if (sender != detail.current_client) return;
+
 	switch (type) {
 		case message_type::sender: {
 			qt.qt_add_sender_message(message);
@@ -290,6 +295,75 @@ void mydak::client::add_message(
 		case message_type::recipient: {
 			qt.qt_add_recipient_message(message);
 			break;
+		}
+	}
+}
+
+void mydak::client::save_dialogs() {
+	std::filesystem::create_directories("dialogs");
+
+	toml::table dialog_file;
+	toml::array dialogs;
+	for (const auto& [recipient, dialog] : detail.dialogs) {
+
+		toml::array messages;
+		for (const auto& [message, type] : dialog.get_messages()) {
+			messages.emplace_back(toml::array{message, static_cast<uint8_t>(type)});
+		}
+
+		dialogs.emplace_back(toml::array{tools::bin2hex_string(recipient), messages});
+	}
+
+	dialog_file.insert_or_assign("dialogs", dialogs);
+
+	std::ofstream file;
+	file.open(std::format("dialogs/{}_dialog.toml", parameters.get<"--login">()));
+	file << dialog_file;
+	file.flush();
+	file.close();
+
+	logger::log_func_debug("Saved dialogs to file");
+}
+
+void mydak::client::load_dialogs() {
+	const std::string filename = std::format("dialogs/{}_dialog.toml", parameters.get<"--login">());
+	if (!std::filesystem::exists(filename)) return;
+
+	toml::table file = toml::parse_file(filename);
+
+	toml::array data;
+	if (const auto* data_ptr = file["dialogs"].as_array()) data = *data_ptr;
+
+	// pseudo structure for better understanding
+	// n: 0-infinite
+	// data: {
+	//     { client-0, [ {message-0, type}, ... , {message-n, type} ] },
+	//     ... ,
+	//     { client-n, [ {message-0, type}, ... , {message-n, type} ] },
+	// }
+	//
+	// dialogs -> dialog{ [client, messages], ...}, ...
+
+	// Looping thru dialogs
+	for (const auto& dialog : data | tools::toml_to_array) {
+		const auto client_opt = dialog->at(0).value<std::string>();
+		const auto* message_datas_ptr = dialog->at(1).as_array();
+
+		// Check client and messages array
+		if (!client_opt.has_value() && !message_datas_ptr) return;
+
+		const auto& client_hex = client_opt.value();
+		std::array<unsigned char, proto::E2E_KEYS_RAW_L> client; // NOLINT(*-pro-type-member-init)
+		tools::hex2bin(client_hex, client.data(), std::size(client));
+
+		add_dialog(client);
+		for (const auto& message_data : *message_datas_ptr | tools::toml_to_array) {
+			const auto message = message_data->at(0).value<std::string>();
+			const auto type = message_data->at(1).value<std::uint8_t>();
+
+			if (!message.has_value() && !type.has_value()) return;
+
+			add_message(client, message.value(), static_cast<message_type>(type.value()));
 		}
 	}
 }
@@ -344,6 +418,28 @@ void mydak::qt_handler::qt_set_user_icon(const std::string_view icon) const {
 		"set_user_icon",
 		Qt::QueuedConnection,
 		Q_ARG(QVariant, QString::fromUtf8(icon.data(), string_size))
+	);
+}
+
+void mydak::qt_handler::qt_clear_messages() const {
+
+	QMetaObject::invokeMethod(
+		qt_pointers.dialog_rectangle,
+		"clear",
+		Qt::QueuedConnection
+	);
+}
+
+// Dialogs
+void mydak::qt_handler::qt_add_dialog(std::string_view name) const {
+	const std::size_t string_size = std::size(name);
+	if (string_size != 4) return;
+
+	QMetaObject::invokeMethod(
+		qt_pointers.dialog_selector,
+		"add_dialog",
+		Qt::QueuedConnection,
+		Q_ARG(QVariant, QString::fromUtf8(name.data(), string_size))
 	);
 }
 #pragma endregion

@@ -18,6 +18,8 @@ namespace mydak {
         QObject* dialog_rectangle{};
         QObject* recipient_bar{};
         QObject* user_bar{};
+        QObject* dialog_selector{};
+
         QGuiApplication* app{};
         QQmlApplicationEngine* app_engine{};
 

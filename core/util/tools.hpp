@@ -8,9 +8,11 @@
 #include <map>
 #include <string>
 #include <unordered_map>
+#include <ranges>
 
 #include "logger.hpp"
 #include "sodium/utils.h"
+#include "toml++/impl/table.hpp"
 
 namespace mydak::tools {
     template <typename T, typename... Chars>
@@ -199,7 +201,7 @@ namespace mydak::tools {
     }
 
     template <std::size_t N>
-    static std::string bin2hex_string(std::array<unsigned char, N>& bin) {
+    static std::string bin2hex_string(const std::array<unsigned char, N>& bin) {
         std::array<char, N * 2 + 1> hex; // NOLINT(*-pro-type-member-init)
         if (sodium_bin2hex(
             hex.data(),
@@ -265,7 +267,7 @@ namespace mydak::tools {
 
     #pragma region Hex to binary
     template <std::size_t N>
-    static std::array<unsigned char, N> hex2bin(const std::string_view hex) {
+    static std::array<unsigned char, N> hex2bin_array(const std::string_view hex) {
         std::array<unsigned char, N> bin; // NOLINT(*-pro-type-member-init)
         if (sodium_hex2bin(
             bin.data(),
@@ -279,7 +281,7 @@ namespace mydak::tools {
         return bin;
     }
 
-    static std::vector<unsigned char> hex2bin(const std::string_view hex) {
+    static std::vector<unsigned char> hex2bin_vector(const std::string_view hex) {
         std::vector<unsigned char> bin; // NOLINT(*-pro-type-member-init)
         bin.resize(std::size(hex) / 2);
         if (sodium_hex2bin(
@@ -295,9 +297,9 @@ namespace mydak::tools {
     }
 
 
-    static void hex2bin(const std::string_view hex, unsigned char *dest, const size_t size) {
+    static void hex2bin(const std::string_view hex, void* dest, const size_t size) {
         if (sodium_hex2bin(
-            dest,
+            static_cast<unsigned char*>(dest),
             size,
             hex.data(),
             std::size(hex), nullptr, nullptr, nullptr
@@ -330,5 +332,23 @@ namespace mydak::tools {
             return hash;
         }
     };
+
+    #pragma region TOML
+    template <std::size_t N, typename T>
+    void try_load_value(std::array<T, N>& value, const char* name, const toml::table& file) {
+        if (const auto value_opt = file[name].value<std::string>(); value_opt.has_value())
+            value = tools::hex2bin_array<N>(value_opt.value());
+        else throw std::runtime_error(std::format("Invalid {}!", name));
+    }
+
+    template <typename T>
+    void try_load_value(T& value, const char* name, const toml::table& file) {
+        if (const auto value_opt = file[name].value<T>(); value_opt.has_value())
+            value = value_opt.value();
+        else throw std::runtime_error(std::format("Invalid {}!", name));
+    }
+
+    static inline auto toml_to_array = std::ranges::views::transform([](const toml::node& node) { return node.as_array(); });
+    #pragma endregion
 }
 #endif //MYDAK_SERVER_TOOLS_H

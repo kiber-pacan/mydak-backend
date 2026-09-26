@@ -136,38 +136,22 @@ namespace mydak {
         }
 
 
-        template <std::size_t N, typename T>
-        void try_load_value(std::array<T, N>& value, const char* name) {
-            toml::table keypair_file = toml::parse_file(filename);
 
-            if (const auto value_opt = keypair_file[name].value<std::string>(); value_opt.has_value())
-                value = tools::hex2bin<N>(value_opt.value());
-            else throw std::runtime_error(std::format("Invalid {}!", name));
-        }
-
-        template <typename T>
-        void try_load_value(T& value, const char* name) {
-            toml::table keypair_file = toml::parse_file(filename);
-
-            if (const auto value_opt = keypair_file[name].value<T>(); value_opt.has_value())
-                value = value_opt.value();
-            else throw std::runtime_error(std::format("Invalid {}!", name));
-        }
 
         void load_keypair() {
             try {
-                // Load data from file
                 toml::table keypair_file = toml::parse_file(filename);
-                try_load_value(salt, "salt");
+                // Load data from file
+                tools::try_load_value(salt, "salt", keypair_file);
 
                 std::size_t opslimit;
-                try_load_value(opslimit, "opslimit");
+                tools::try_load_value(opslimit, "opslimit", keypair_file);
                 std::size_t memlimit;
-                try_load_value(memlimit, "memlimit");
-                try_load_value(password_hash, "password_hash");
+                tools::try_load_value(memlimit, "memlimit", keypair_file);
+                tools::try_load_value(password_hash, "password_hash", keypair_file);
 
-                try_load_value(nonce, "nonce");
-                try_load_value(private_key_encoded, "private_key_encoded");
+                tools::try_load_value(nonce, "nonce", keypair_file);
+                tools::try_load_value(private_key_encoded, "private_key_encoded", keypair_file);
 
 
                 // Generate new hash from given password and compare that hash with the file one

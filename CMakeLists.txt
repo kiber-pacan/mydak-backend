@@ -65,6 +65,9 @@ qt_add_executable(${EXECUTABLE_NAME}
         core/Qt/connector/qt_ptrs.hpp
         core/main/dialog.cpp
         core/main/dialog.hpp
+        core/util/message_type.hpp
+        core/Qt/util/dialog_model.cpp
+        core/Qt/util/dialog_model.hpp
 )
 
 target_include_directories(${EXECUTABLE_NAME} PRIVATE
@@ -91,6 +94,7 @@ qt_add_qml_module(${EXECUTABLE_NAME}
         QML_FILES
         core/Qt/QtQuick/Main.qml
         core/Qt/QtQuick/DialogRectangle.qml
+        core/Qt/QtQuick/DialogSelector.qml
         core/Qt/QtQuick/Theme.qml
 
         core/Qt/QtQuick/bars/top/RecipientBar_Top.qml
