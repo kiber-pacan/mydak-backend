@@ -110,6 +110,7 @@ int main(int argc, char* argv[]) {
 
 	mydak::coh::detached(client.receive_loop());
 	mydak::coh::detached(client.send_loop());
+	mydak::coh::detached(client.listen_loop());
 
 
 	std::thread input_thread(mydak::input, std::ref(client), std::ref(io));

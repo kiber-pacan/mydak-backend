@@ -68,6 +68,7 @@ qt_add_executable(${EXECUTABLE_NAME}
         core/util/message_type.hpp
         core/Qt/util/dialog_model.cpp
         core/Qt/util/dialog_model.hpp
+        core/Qt/util/channel_holder.hpp
 )
 
 target_include_directories(${EXECUTABLE_NAME} PRIVATE

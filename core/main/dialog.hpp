@@ -15,8 +15,9 @@
 
 namespace mydak {
     struct dialog {
+        dialog() = default;
         ~dialog() = default;
-        dialog(const dialog& d) = delete;
+        dialog(const dialog& d) = default;
         dialog(
             const std::array<unsigned char, proto::E2E_KEYS_RAW_L> &recipient
         ) : recipient(recipient) {}
@@ -33,7 +34,7 @@ namespace mydak {
             return messages;
         }
     private:
-        std::array<unsigned char, proto::E2E_KEYS_RAW_L> recipient;
+        std::array<unsigned char, proto::E2E_KEYS_RAW_L> recipient{};
         std::vector<std::pair<std::string, message_type>> messages{};
     };
 }

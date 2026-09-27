@@ -6,6 +6,7 @@
 #include <boost/asio/experimental/channel.hpp>
 #include <queue>
 
+#include "channel_holder.hpp"
 #include "dialog.hpp"
 #include "identity.hpp"
 #include "namer.hpp"
@@ -15,40 +16,48 @@
 
 
 enum class message_type;
-class QObject;
 namespace asio = boost::asio;
+class QObject;
 
 namespace mydak {
 	using signal_channel = asio::experimental::channel<void(boost::system::error_code)>; }
 
 namespace mydak {
 	struct client_detail {
-		std::shared_ptr<signal_channel> send_channel_ptr;
-		std::shared_ptr<signal_channel> receive_channel_ptr;
+		// Using unique_ptr because of delayed init
+		std::unique_ptr<signal_channel> send_channel_ptr;
+		std::unique_ptr<signal_channel> receive_channel_ptr;
 
 		std::queue<std::string> messages_queue{};
 
-		std::array<unsigned char, proto::E2E_KEYS_RAW_L> current_client{};
+		std::array<unsigned char, proto::E2E_KEYS_RAW_L> current_recipient{};
 		std::unordered_map<std::array<unsigned char, proto::E2E_KEYS_RAW_L>,
 						   dialog, tools::char_array_hasher> dialogs;
 	};
 
 	struct qt_handler {
 		// Messages
-		void qt_add_sender_message(std::string_view message) const;
-
-		void qt_add_recipient_message(std::string_view message) const;
-
+		void qt_add_message(std::string_view message, message_type type) const;
 
 		// User rectangle
 		void qt_set_user_name(std::string_view name) const;
 
 		void qt_set_user_icon(std::string_view icon) const;
 
-		void qt_clear_messages() const;
+		// Dialog messages
+		void qt_clear_current_dialog() const;
+
+		// Recipient bar
+		void qt_set_recipient_name(
+			const std::array<unsigned char, proto::E2E_KEYS_RAW_L>& recipient
+		) const;
 
 		// Dialogs
-		void qt_add_dialog(std::string_view name) const;
+		void qt_add_dialog(
+			const std::array<unsigned char, proto::E2E_KEYS_RAW_L>& client
+		) const;
+
+		void qt_clear_dialogs() const;
 
 		qt_ptrs qt_pointers;
 	};
@@ -75,11 +84,8 @@ namespace mydak {
 			qt.qt_set_user_name(namer::get_name(id.public_key_value));
 			qt.qt_set_user_icon(namer::get_icon(id.public_key_value));
 
-			if (!detail.current_client.empty()) {
-				add_dialog(detail.current_client);
-			}
-
 			load_dialogs();
+			qt.qt_set_recipient_name(detail.current_recipient);
 		}
 
 
@@ -90,6 +96,8 @@ namespace mydak {
 		asio::awaitable<void> receive_loop();
 
 		asio::awaitable<void> send_loop();
+
+		asio::awaitable<void> listen_loop();
 
 		void send_message(std::string_view message);
 
@@ -106,6 +114,8 @@ namespace mydak {
 		void save_dialogs();
 
 		void load_dialogs();
+
+		void set_dialog(const std::array<unsigned char, proto::E2E_KEYS_RAW_L>& client);
 		#pragma endregion
 
 
