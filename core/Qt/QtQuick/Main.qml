@@ -22,7 +22,7 @@ ApplicationWindow {
             color: "#202020"
 
 
-            UserBar_Top {
+            UserBar {
                 width: parent.width
                 height: root.bar_height
 
@@ -42,7 +42,7 @@ ApplicationWindow {
                 objectName: "dialog_selector"
             }
 
-            LogoBar_Bottom {
+            LogoBar {
                 width: parent.width
                 height: root.bar_height
 
@@ -73,7 +73,7 @@ ApplicationWindow {
 
 
             // RECIPIENT NAME TOP
-            RecipientBar_Top {
+            RecipientBar {
                 id: recipient_bar
                 objectName: "recipient_bar"
 
@@ -94,7 +94,7 @@ ApplicationWindow {
             }
 
             // MESSAGE INPUT BOTTOM
-            InputBar_Bottom {
+            InputBar {
                 id: input_bar
                 objectName: "input_bar"
 
@@ -102,4 +102,40 @@ ApplicationWindow {
             }
         }
     }
+
+    // Borders
+    Rectangle {
+        width: parent.width
+        height: 1
+
+        anchors.top: parent.top
+
+        color: "#505050"
+    }
+    Rectangle {
+        width: parent.width
+        height: 1
+
+        anchors.bottom: parent.bottom
+
+        color: "#505050"
+    }
+
+    Rectangle {
+        width: 1
+        height: parent.height
+
+        anchors.left: parent.left
+
+        color: "#505050"
+    }
+    Rectangle {
+        width: 1
+        height: parent.height
+
+        anchors.right: parent.right
+
+        color: "#505050"
+    }
+
 }

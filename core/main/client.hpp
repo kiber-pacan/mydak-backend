@@ -36,6 +36,9 @@ namespace mydak {
 	};
 
 	struct qt_handler {
+		qt_handler() = delete;
+		explicit qt_handler(client_detail* detail_ptr) : detail_ptr(detail_ptr) {}
+
 		// Messages
 		void qt_add_message(std::string_view message, message_type type) const;
 
@@ -60,6 +63,7 @@ namespace mydak {
 		void qt_clear_dialogs() const;
 
 		qt_ptrs qt_pointers;
+		client_detail* detail_ptr;
 	};
 
 	struct client : std::enable_shared_from_this<client> {
@@ -70,7 +74,8 @@ namespace mydak {
 		) : io(io),
 			ip(parameters.get<"--ip">()),
 			port(parameters.get<"--port">()),
-			parameters(parameters)
+			parameters(parameters),
+			qt(&detail)
 		{
 			id = identity(parameters.get<"--login">(), parameters.get<"--password">());
 			if (const auto recipient = parameters.get<"--recipient">(); std::size(recipient) > 0) {
@@ -103,9 +108,9 @@ namespace mydak {
 
 		void set_recipient(const void* ptr);
 
-		void add_dialog(const std::array<unsigned char, proto::E2E_KEYS_RAW_L>& recipient);
+		void try_add_dialog(const std::array<unsigned char, proto::E2E_KEYS_RAW_L>& recipient);
 
-		void add_message(
+		void add_message_to_dialog(
 			const std::array<unsigned char, proto::E2E_KEYS_RAW_L>& sender,
 			std::string_view message,
 			message_type type

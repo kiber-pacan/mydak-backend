@@ -16,7 +16,10 @@
 
 namespace mydak {
     struct dialog_model {
-        dialog_model(const QByteArray& q_client)
+        dialog_model() = default;
+        dialog_model(
+            const QByteArray& q_client
+        )
             : client(q_client)
         {
             uint16_t value;
@@ -38,7 +41,7 @@ namespace mydak {
         [[nodiscard]] QHash<int, QByteArray> roleNames() const override;
 
         Q_INVOKABLE void add_dialog(const QByteArray& client);
-        Q_INVOKABLE void set_dialog(int client_index);
+        Q_INVOKABLE void set_dialog(int index);
 
         //Q_INVOKABLE void append_messages(const std::vector<std::pair<std::string, message_type>> &message, uint8_t type);
         Q_INVOKABLE void clear();

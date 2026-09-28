@@ -130,8 +130,9 @@ asio::awaitable<void> mydak::client::receive_loop() {
 			std::string formatted = std::format("{}{}", gap, message_view);
 			logger::log(std::format("{} : {}", namer::get_name(id.public_key_value), formatted));
 
-			add_message(sender_public_key, message_view, message_type::recipient);
-			add_dialog(sender_public_key);
+			try_add_dialog(sender_public_key); // Try to add dialog if not exists
+			// And then add message to the dialog
+			add_message_to_dialog(sender_public_key, message_view, message_type::recipient);
 		}
 	} catch (const std::exception& e) {
 		logger::log_func_error(e.what());
@@ -228,7 +229,7 @@ asio::awaitable<void> mydak::client::send_loop() {
 				co_await asio::async_write(*socket, asio::buffer(processed_message), asio::use_awaitable);
 				#pragma endregion
 
-				add_message(detail.current_recipient, message_raw, message_type::sender);
+				add_message_to_dialog(detail.current_recipient, message_raw, message_type::sender);
 			}
 		}
 	} catch (const std::exception& e) {
@@ -281,18 +282,18 @@ void mydak::client::set_recipient(const void* ptr) {
 	);
 }
 
-void mydak::client::add_dialog(const std::array<unsigned char, proto::E2E_KEYS_RAW_L>& recipient) {
+void mydak::client::try_add_dialog(const std::array<unsigned char, proto::E2E_KEYS_RAW_L>& recipient) {
 	const auto it = detail.dialogs.find(recipient);
 	// In emplace call the first argument is key and the second is argument for passing it into
 	// the dialog constructor
 	if (it == detail.dialogs.end()) {
 		detail.dialogs.emplace(recipient, recipient);
 
-		qt.qt_add_dialog(recipient);
+
 	}
 }
 
-void mydak::client::add_message(
+void mydak::client::add_message_to_dialog(
 	const std::array<unsigned char, proto::E2E_KEYS_RAW_L>& sender,
 	const std::string_view message,
 	const message_type type
@@ -347,7 +348,7 @@ void mydak::client::load_dialogs() {
 	const std::string filename = std::format("dialogs/{}_dialog.toml", parameters.get<"--login">());
 	if (!std::filesystem::exists(filename)) {
 		if (!detail.current_recipient.empty()) {
-			add_dialog(detail.current_recipient);
+			try_add_dialog(detail.current_recipient);
 		}
 		return;
 	}
@@ -378,16 +379,17 @@ void mydak::client::load_dialogs() {
 		const auto& client_hex = client_opt.value();
 		std::array<unsigned char, proto::E2E_KEYS_RAW_L> client; // NOLINT(*-pro-type-member-init)
 		tools::hex2bin(client_hex, client.data(), std::size(client));
-
-		add_dialog(client);
+		try_add_dialog(client);
 		for (const auto& message_data : *message_datas_ptr | tools::toml_to_array) {
 			const auto message = message_data->at(0).value<std::string>();
 			const auto type = message_data->at(1).value<std::uint8_t>();
 
 			if (!message.has_value() && !type.has_value()) return;
 
-			add_message(client, message.value(), static_cast<message_type>(type.value()));
+			add_message_to_dialog(client, message.value(), static_cast<message_type>(type.value()));
 		}
+
+
 	}
 }
 
@@ -474,13 +476,27 @@ void mydak::qt_handler::qt_set_recipient_name(
 
 // Dialogs
 void mydak::qt_handler::qt_add_dialog(const std::array<unsigned char, proto::E2E_KEYS_RAW_L>& client) const {
-	QMetaObject::invokeMethod(
-		qt_pointers.dialog_selector,
-		"add_dialog",
-		Qt::QueuedConnection,
-		Q_ARG(QVariant, QByteArray(reinterpret_cast<const char*>(client.data()), std::size(client)))
+	if (const auto& messages = detail_ptr->dialogs[client].get_messages(); !messages.empty()) {
+		const auto& last_pair = messages.back();
 
-	);
+		QMetaObject::invokeMethod(
+			qt_pointers.dialog_selector,
+			"add_dialog",
+			Qt::QueuedConnection,
+			Q_ARG(QVariant, QByteArray(reinterpret_cast<const char*>(client.data()), std::size(client))),
+			Q_ARG(QVariant, QString::fromUtf8(last_pair.first.data(), std::size(last_pair.first))),
+			Q_ARG(QVariant, static_cast<int>(last_pair.second))
+		);
+	} else {
+		QMetaObject::invokeMethod(
+			qt_pointers.dialog_selector,
+			"add_dialog",
+			Qt::QueuedConnection,
+			Q_ARG(QVariant, QByteArray(reinterpret_cast<const char*>(client.data()), std::size(client))),
+			Q_ARG(QVariant, ""),
+			Q_ARG(QVariant, 1)
+		);
+	}
 }
 
 void mydak::qt_handler::qt_clear_dialogs() const {

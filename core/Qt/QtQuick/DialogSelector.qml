@@ -5,27 +5,38 @@ Rectangle {
     id: root
     property int padding: 10
 
+    property int root_height: 40
+    property int bonus_height: 16
+    property int margin: 4
+
     color: "#303030"
 
     Dialog_model {
         id: dialogs
     }
 
-    function add_dialog(client) {
+    property var last_texts: ({})
+
+    // FUNCTIONS START
+    function add_dialog(client, message, message_type) {
         dialogs.add_dialog(client)
+        const row = dialogs.rowCount() - 1
+        last_texts[row] = message === "" ? "no messages" : ((message_type ? "" : "") + " " + message)
     }
 
     function set_dialog(index) {
         dialogs.set_dialog(index)
     }
 
-    //function append_messages(messages) {
-    //    messages.add_message(messages)
+    //function set_message(index, message, message_type) {
+        //message_text.text: message_type ? "" : "" + " " + message
     //}
 
     function clear() {
         dialogs.clear()
     }
+
+    // FUNCTIONS END
 
     ListView {
         model: dialogs
@@ -39,11 +50,11 @@ Rectangle {
         boundsBehavior: Flickable.StopAtBounds
 
         delegate: Rectangle {
-            id: dialog_field
-            color: "#303030"
+            id: dialog_rectangle
+            objectName: "dialog_rectangle"
 
             width: parent.width
-            height: dialog_rectangle.height
+            height: root_height + bonus_height + 1
 
             MouseArea {
                 id: mouse_area
@@ -55,33 +66,128 @@ Rectangle {
                 }
             }
 
-            Rectangle {
-                id: dialog_rectangle
+            color: "#252525"
 
-                color: mouse_area.containsMouse ? "#303030" : "#202020"
-
-                Behavior on color {
-                    ColorAnimation { duration: 150 }
+            // COLOR START
+            states: [
+                State {
+                    name: "pressed"
+                    when: mouse_area.pressed
+                    PropertyChanges { target: dialog_rectangle; color: "#454545" }
+                },
+                State {
+                    name: "hovered"
+                    when: mouse_area.containsMouse
+                    PropertyChanges { target: dialog_rectangle; color: "#353535" }
                 }
+            ]
 
-                anchors.left: parent.left
+            transitions: [
+                Transition {
+                    to: "pressed"
+                    ColorAnimation { duration: 12 }
+                },
+                Transition {
+                    to: "hovered"
+                    ColorAnimation { duration: 75 }
+                },
+                Transition {
+                    to: ""   // возврат в состояние по умолчанию
+                    ColorAnimation { duration: 300; easing.type: Easing.OutQuad }
+                }
+            ]
+            // COLOR END
 
-                property int margin: 20
-                width: parent.width
-                height: dialog_text.height + margin
+            Item {
+                width: parent.width - root.root_height - root.margin
+                height: root.root_height - root.margin * 2
+
+                anchors.right: parent.right
+                anchors.top: parent.top
+
+                anchors.rightMargin: root.margin
+                anchors.topMargin: root.margin
+                anchors.bottomMargin: root.margin
 
                 Text {
                     text: model.name
                     id: dialog_text
 
+                    width: parent.width
+
                     color: "#ffffff"
 
-                    anchors.centerIn: parent
+                    anchors.left: parent.left
+                    anchors.verticalCenter: parent.verticalCenter
 
-                    width: Math.min(implicitWidth, root.width)
-                    wrapMode: Text.Wrap
+                    elide: Text.ElideRight
+                    font.pixelSize: 14
+                    fontSizeMode: Text.FixedSize
                 }
             }
+
+            Item {
+                width: root.root_height - root.margin * 2
+                height: root.root_height - root.margin * 2
+
+                anchors.left: parent.left
+                anchors.top: parent.top
+
+                anchors.leftMargin: root.margin
+                anchors.topMargin: root.margin
+                anchors.bottomMargin: root.margin
+
+
+                Rectangle {
+                    anchors.fill: parent
+
+                    radius: 64
+
+                    color: "#303030"
+                    border.width: 1
+                    border.color: "#505050"
+
+
+                    Text {
+                        id: user_icon
+                        objectName: "user_icon"
+
+                        anchors.centerIn: parent
+                        text: ""
+                        color: "#ffffff"
+                    }
+                }
+            }
+
+            Item {
+                width: parent.width - root.margin * 2
+                height: root.bonus_height - root.margin
+
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.bottom: parent.bottom
+
+                anchors.leftMargin: root.margin
+                anchors.rightMargin: root.margin
+                anchors.bottomMargin: root.margin + 1
+
+                Text {
+                    id: message_text
+
+                    width: parent.width
+
+                    text: last_texts[index]
+
+                    color: "#ffffff"
+
+                    anchors.left: parent.left
+                    anchors.verticalCenter: parent.verticalCenter
+
+                    elide: Text.ElideRight
+                    font.pixelSize: 14
+                    fontSizeMode: Text.FixedSize
+                }
+            }
+
             Rectangle {
                 width: parent.width
                 height: 1

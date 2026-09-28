@@ -6,7 +6,9 @@ Rectangle {
     id: user_rectangle
     objectName: "user_rectangle"
 
+    color: "#252525"
     property int button_size: 40
+    property int margin: 4
 
     width: parent.width
     height: button_size
@@ -20,23 +22,27 @@ Rectangle {
     }
 
     // ICON
-    Rectangle {
-        width: user_rectangle.button_size
-        height: user_rectangle.button_size
+    Item {
+        width: user_rectangle.button_size - user_rectangle.margin * 2
+        height: user_rectangle.button_size - user_rectangle.margin * 2
 
-        color: "#252525"
+        anchors.left: parent.left
+        anchors.verticalCenter: parent.verticalCenter
 
-        property int margin
+        anchors.leftMargin: user_rectangle.margin
+        anchors.topMargin: user_rectangle.margin
+        anchors.bottomMargin: user_rectangle.margin
+
 
         Rectangle {
             anchors.fill: parent
-            anchors.margins: 4
 
             radius: 64
 
             color: "#303030"
             border.width: 1
             border.color: "#505050"
+
 
             Text {
                 id: user_icon
@@ -50,13 +56,16 @@ Rectangle {
     }
 
     // NAME
-    Rectangle {
-        width: parent.width - user_rectangle.button_size
-        height: parent.height
+    Item {
+        width: parent.width - user_rectangle.button_size - user_rectangle.margin
+        height: parent.height - user_rectangle.margin * 2
 
         anchors.right: parent.right
+        anchors.verticalCenter: parent.verticalCenter
 
-        color: "#252525"
+        anchors.rightMargin: user_rectangle.margin
+        anchors.topMargin: user_rectangle.margin
+        anchors.bottomMargin: user_rectangle.margin
 
         Text {
             id: user_name

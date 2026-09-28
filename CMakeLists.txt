@@ -98,10 +98,11 @@ qt_add_qml_module(${EXECUTABLE_NAME}
         core/Qt/QtQuick/DialogSelector.qml
         core/Qt/QtQuick/Theme.qml
 
-        core/Qt/QtQuick/bars/top/RecipientBar_Top.qml
-        core/Qt/QtQuick/bars/top/UserBar_Top.qml
-        core/Qt/QtQuick/bars/bottom/InputBar_Bottom.qml
-        core/Qt/QtQuick/bars/bottom/LogoBar_Bottom.qml
+        core/Qt/QtQuick/bars/top/RecipientBar.qml
+        core/Qt/QtQuick/bars/bottom/LogoBar.qml
+
+        core/Qt/QtQuick/bars/top/UserBar.qml
+        core/Qt/QtQuick/bars/bottom/InputBar.qml
 )
 
 qt_add_resources(${EXECUTABLE_NAME} "fonts"

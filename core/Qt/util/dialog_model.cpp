@@ -40,10 +40,10 @@ Q_INVOKABLE void mydak::Dialog_model::add_dialog(const QByteArray& client) {
     endInsertRows();
 }
 
-Q_INVOKABLE void mydak::Dialog_model::set_dialog(int client_index) {
+Q_INVOKABLE void mydak::Dialog_model::set_dialog(int index) {
     auto& io = coh::io();
     std::array<unsigned char, proto::E2E_KEYS_RAW_L> client; // NOLINT(*-pro-type-member-init)
-    const auto& q_client = dialogs[client_index].client;
+    const auto& q_client = dialogs[index].client;
     memcpy(client.data(), q_client.data(), std::size(client));
 
     coh::detached([client] () -> asio::awaitable<void> {
@@ -52,12 +52,6 @@ Q_INVOKABLE void mydak::Dialog_model::set_dialog(int client_index) {
         co_return;
     });
 }
-
-
-//Q_INVOKABLE void append_messages(const std::vector<std::pair<std::string, message_type>> &message, uint8_t type) {
-
-//}
-
 
 Q_INVOKABLE void mydak::Dialog_model::clear() {
     if (dialogs.isEmpty()) return;
