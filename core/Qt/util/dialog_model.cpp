@@ -35,6 +35,7 @@ QHash<int, QByteArray> mydak::Dialog_model::roleNames() const {
 }
 
 Q_INVOKABLE void mydak::Dialog_model::add_dialog(const QByteArray& client) {
+    // TODO MAKE DUPLICATE PROOF
     beginInsertRows({}, static_cast<int>(std::size(dialogs)), static_cast<int>(std::size(dialogs)));
     dialogs.append(client);
     endInsertRows();

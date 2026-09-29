@@ -14,6 +14,7 @@
 #include "namer.hpp"
 #include "proto.hpp"
 
+// TODO REDO BAD SPEEDS
 namespace mydak {
     struct dialog_model {
         dialog_model() = default;

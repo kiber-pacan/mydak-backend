@@ -15,17 +15,25 @@ Rectangle {
         id: dialogs
     }
 
-    property var last_texts: ({})
+    property var messages: ({})
+    property var icons: ({})
 
     // FUNCTIONS START
-    function add_dialog(client, message, message_type) {
+    function add_dialog(client, message, message_type, icon) {
         dialogs.add_dialog(client)
         const row = dialogs.rowCount() - 1
-        last_texts[row] = message === "" ? "no messages" : ((message_type ? "" : "") + " " + message)
+
+        messages[row] = message === "" ? "no messages" : ((message_type ? "" : "") + " " + message)
+        icons[row] = icon
     }
 
     function set_dialog(index) {
         dialogs.set_dialog(index)
+    }
+
+    function set_dialog_message(index, message, message_type) {
+        messages[index] = message === "" ? "no messages" : ((message_type ? "" : "") + " " + message)
+        icons[index] = icon
     }
 
     //function set_message(index, message, message_type) {
@@ -41,8 +49,8 @@ Rectangle {
     ListView {
         model: dialogs
 
-        width: parent.width
-        height: parent.height
+        width: root.width
+        height: root.height
 
         anchors.fill: parent
 
@@ -53,7 +61,7 @@ Rectangle {
             id: dialog_rectangle
             objectName: "dialog_rectangle"
 
-            width: parent.width
+            width: root.width
             height: root_height + bonus_height + 1
 
             MouseArea {
@@ -153,7 +161,8 @@ Rectangle {
                         objectName: "user_icon"
 
                         anchors.centerIn: parent
-                        text: ""
+                        text: icons[index] ?? ""
+
                         color: "#ffffff"
                     }
                 }
@@ -175,7 +184,7 @@ Rectangle {
 
                     width: parent.width
 
-                    text: last_texts[index]
+                    text: messages[index] ?? "no messages"
 
                     color: "#ffffff"
 

@@ -62,6 +62,7 @@ namespace mydak {
 
 		void qt_clear_dialogs() const;
 
+
 		qt_ptrs qt_pointers;
 		client_detail* detail_ptr;
 	};
@@ -91,8 +92,22 @@ namespace mydak {
 
 			load_dialogs();
 			qt.qt_set_recipient_name(detail.current_recipient);
+
+			//dialog_test();
 		}
 
+		// Testing big dialog vector
+		/*
+		void dialog_test() {
+			for (std::size_t i = 0; i < 1024; i++) {
+				std::array<unsigned char, proto::E2E_KEYS_RAW_L> key; // NOLINT(*-pro-type-member-init)
+				randombytes(key.data(), std::size(key));
+				try_add_dialog(key);
+			}
+
+			update_all_dialogs();
+		}
+		*/
 
 
 		#pragma region Main
@@ -121,6 +136,9 @@ namespace mydak {
 		void load_dialogs();
 
 		void set_dialog(const std::array<unsigned char, proto::E2E_KEYS_RAW_L>& client);
+
+		// TODO REDO BAD SPEEDS
+		void update_all_dialogs() const;
 		#pragma endregion
 
 
