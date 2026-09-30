@@ -30,7 +30,7 @@ namespace mydak::coh {
     template <typename Func>
     void detached(Func&& coroutine_lambda)
     requires
-    std::is_rvalue_reference_v<decltype(coroutine_lambda)> &&
+    std::is_rvalue_reference_v<Func> &&
     std::is_invocable_v<Func> &&
     is_awaitable<std::invoke_result_t<Func>>::value
     {
