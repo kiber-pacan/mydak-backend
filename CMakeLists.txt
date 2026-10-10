@@ -94,8 +94,9 @@ qt_add_qml_module(${EXECUTABLE_NAME}
 
         QML_FILES
         core/Qt/QtQuick/Main.qml
-        core/Qt/QtQuick/DialogRectangle.qml
-        core/Qt/QtQuick/DialogSelector.qml
+        core/Qt/QtQuick/dialog/DialogRectangle.qml
+        core/Qt/QtQuick/dialog/selector/DialogSelector.qml
+        core/Qt/QtQuick/dialog/selector/DialogEntry.qml
         core/Qt/QtQuick/Theme.qml
 
         core/Qt/QtQuick/bars/top/RecipientBar.qml

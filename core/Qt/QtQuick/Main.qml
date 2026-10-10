@@ -10,47 +10,25 @@ ApplicationWindow {
     visible: true
 
     property int bar_height: 40
+    property int sidebar_width: 225
+    property int sidebar_max_width: 400
+    property int sidebar_min_width: 150
 
+    property int bar_left_width: 225
+    // TOP
     Row {
-        anchors.fill: parent
+        width: parent.width
+        height: root.bar_height
 
-        // Sidebar
-        Rectangle {
-            width: 200
+        anchors.top: parent.top
+
+        // Username bar
+        UserBar {
+            id: user_bar
+            objectName: "user_bar"
+
+            width: root.bar_left_width
             height: parent.height
-
-            color: "#202020"
-
-
-            UserBar {
-                width: parent.width
-                height: root.bar_height
-
-                anchors.top: parent.top
-
-                id: user_bar
-                objectName: "user_bar"
-            }
-
-            DialogSelector {
-                width: parent.width
-                height: parent.height - root.bar_height * 2
-
-                anchors.centerIn: parent
-
-                id: dialog_selector
-                objectName: "dialog_selector"
-            }
-
-            LogoBar {
-                width: parent.width
-                height: root.bar_height
-
-                anchors.bottom: parent.bottom
-
-                id: logo_bar
-                objectName: "logo_bar"
-            }
         }
 
         // Separator
@@ -61,27 +39,119 @@ ApplicationWindow {
             color: "#505050"
         }
 
+        // Recipient name
+        RecipientBar {
+            id: recipient_bar
+            objectName: "recipient_bar"
+
+            width: parent.width - root.bar_left_width - 1
+            height: parent.height
+        }
+    }
+
+    // BOTTOM
+    Row {
+        width: parent.width
+        height: root.bar_height
+
+        anchors.bottom: parent.bottom
+
+        // Logo and settings
+        LogoBar {
+            id: logo_bar
+            objectName: "logo_bar"
+
+            width: root.bar_left_width
+            height: root.bar_height
+        }
+
+        // Separator
+        Rectangle {
+            width: 1
+            height: parent.height
+
+            color: "#505050"
+        }
+
+        // Message input
+        InputBar {
+            id: input_bar
+            objectName: "input_bar"
+
+            width: parent.width - root.bar_left_width
+            height: root.bar_height
+        }
+    }
+
+    // SPLITVIEW inbetween TOP and BOTTOM
+    SplitView {
+        anchors.fill: parent
+
+        anchors.topMargin: root.bar_height
+        anchors.bottomMargin: root.bar_height
+
+        // Separator
+        handle: Rectangle {
+            implicitWidth: 1
+            height: parent.height
+
+            color: "#505050"
+            MouseArea {
+                id: area
+                objectName: "area"
+
+                cursorShape: Qt.SizeHorCursor
+
+                width: 20
+                height: parent.height
+                x: -width / 2
+0
+
+                property real delta: 0
+
+                onPressed: {
+                    delta = mouse.x - area.width / 2
+                }
+
+                onPositionChanged: (mouse) => {
+                    if (pressed) {
+                        sidebar.SplitView.preferredWidth = mapToGlobal(mouse.x, mouse.y).x - area.delta
+                    }
+                }
+            }
+        }
+
+        // Sidebar
+        Rectangle {
+            id: sidebar
+            objectName: "sidebar"
+
+            SplitView.preferredWidth: root.sidebar_width
+            SplitView.minimumWidth: root.sidebar_min_width
+            SplitView.maximumWidth: root.sidebar_max_width
+            height: parent.height
+
+            color: "#202020"
+
+
+            DialogSelector {
+                width: parent.width
+                height: parent.height
+
+                id: dialog_selector
+                objectName: "dialog_selector"
+            }
+        }
+
         // Main window
         Rectangle {
             id: main
             objectName: "main"
 
-            width: parent.width - 201
+            width: parent.width - root.sidebar_width
             height: parent.height
 
             color: "#303030"
-
-
-            // RECIPIENT NAME TOP
-            RecipientBar {
-                id: recipient_bar
-                objectName: "recipient_bar"
-
-                width: parent.width
-                height: root.bar_height
-
-                anchors.top: parent.top
-            }
 
             DialogRectangle {
                 id: dialog_rectangle
@@ -91,14 +161,6 @@ ApplicationWindow {
                 height: parent.height - input_bar.height - recipient_bar.height
 
                 anchors.centerIn: parent
-            }
-
-            // MESSAGE INPUT BOTTOM
-            InputBar {
-                id: input_bar
-                objectName: "input_bar"
-
-                anchors.bottom: parent.bottom
             }
         }
     }
