@@ -105,7 +105,6 @@ ApplicationWindow {
                 width: 20
                 height: parent.height
                 x: -width / 2
-0
 
                 property real delta: 0
 

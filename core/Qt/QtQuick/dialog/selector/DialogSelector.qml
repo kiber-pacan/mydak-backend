@@ -62,5 +62,21 @@ Rectangle {
             root_item_height: root_height
             root_bonus_height: bonus_height
         }
+
+        /*footer: NewDialogButton {
+            width: parent.width
+            height: 40
+        }*/
+        footer: Item {
+            width: parent.width
+            height: 40
+            HoverButton {
+                anchors.centerIn: parent
+                width: 32
+                height: 32
+                button_text: "+"
+            }
+        }
+
     }
 }

@@ -97,6 +97,7 @@ qt_add_qml_module(${EXECUTABLE_NAME}
         core/Qt/QtQuick/dialog/DialogRectangle.qml
         core/Qt/QtQuick/dialog/selector/DialogSelector.qml
         core/Qt/QtQuick/dialog/selector/DialogEntry.qml
+        core/Qt/QtQuick/dialog/selector/NewDialogButton.qml
         core/Qt/QtQuick/Theme.qml
 
         core/Qt/QtQuick/bars/top/RecipientBar.qml
@@ -104,6 +105,8 @@ qt_add_qml_module(${EXECUTABLE_NAME}
 
         core/Qt/QtQuick/bars/top/UserBar.qml
         core/Qt/QtQuick/bars/bottom/InputBar.qml
+
+        core/Qt/QtQuick/prefabs/HoverButton.qml
 )
 
 qt_add_resources(${EXECUTABLE_NAME} "fonts"

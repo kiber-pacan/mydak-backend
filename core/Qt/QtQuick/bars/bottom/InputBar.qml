@@ -41,8 +41,10 @@ Rectangle {
         color: "#252525"
 
         function send_message() {
-            qt_connector.send_message(message_text_edit.text)
-            message_text_edit.text = ""
+            if (message_text_edit.text !== "") {
+                qt_connector.send_message(message_text_edit.text)
+                message_text_edit.text = ""
+            }
         }
 
         ScrollView {
@@ -75,11 +77,15 @@ Rectangle {
                 color: "#ffffff"
                 wrapMode: TextEdit.Wrap
 
-                Keys.onEnterPressed: (event) => {
-                    background.send_message()
+                Keys.onEnterPressed: (e) => {
+                    if (message_text_edit.text !== "") {
+                        background.send_message()
+                    }
                 }
-                Keys.onReturnPressed: (event) => {
-                    background.send_message()
+                Keys.onReturnPressed: (e) => {
+                    if (message_text_edit.text !== "") {
+                        background.send_message()
+                    }
                 }
 
                 // Sticking scroll position to the cursor on the text entry
@@ -94,7 +100,25 @@ Rectangle {
             }
         }
 
-        Button {
+        HoverButton {
+            id: send_button
+            objectName: "send_button"
+
+            width: 32
+            height: 32
+
+            anchors.right: parent.right
+            anchors.rightMargin: (root.min_height - 32) / 2
+            anchors.verticalCenter: parent.verticalCenter
+
+            onClicked: {
+                background.send_message()
+            }
+
+            button_text: ""
+        }
+
+        /*Button {
             id: send_button
             objectName: "send_button"
 
@@ -125,6 +149,6 @@ Rectangle {
                     font.pointSize: 14
                 }
             }
-        }
+        } */
     }
 }
